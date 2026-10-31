@@ -7,7 +7,7 @@ This v2 keeps the original 11 modules (A–K) and fixes gaps, contradictions and
 
 ## Starting point
 **Greenfield, from zero.** Earlier prototypes on this machine (WrapMySite, `WebToAppConverter/convert.mjs`) are deliberately not reused.
-Local dev notes: AVD `Pixel_5_API_36` exists for runtime tests; port 5173 is often taken.
+Local dev notes: AVD `Medium_Phone_API_36.1` exists for runtime tests; port 5173 is often taken.
 **Builds run in Docker containers on our own worker hosts.** No GitHub Actions.
 
 ## Decisions made (2026-10-31)
@@ -169,7 +169,7 @@ Keep original groups. Add: `GET /api/builds/:id/events` (SSE), `POST /api/apps/:
 4. **Later:** iOS (macOS builder + Xcode), in-app updates, analytics.
 
 ## Verification (expanded)
-- **Template:** build by hand from sample config; install on `Pixel_5_API_36` emulator and a real device; test each toggle (upload, download, deep link + assetlinks, offline screen, back/exit, pull-to-refresh, popups, Google sign-in fallback, JS bridge origin check).
+- **Template:** build by hand from sample config; install on `Medium_Phone_API_36.1` emulator and a real device; test each toggle (upload, download, deep link + assetlinks, offline screen, back/exit, pull-to-refresh, popups, Google sign-in fallback).
 - **E2E:** sign up → create app → build → download APK → `adb install` → site loads. Automate with Playwright against a local stack (`docker compose`: mongo, redis, server, worker, client).
 - **Signing/Play:** `apksigner verify`, `jarsigner -verify`, `bundletool validate`, upload AAB to Play Console internal testing; confirm update with same keystore + higher versionCode installs over old build.
 - **Security tests:** SSRF suite (private IPs, redirects to metadata IP, DNS rebinding, IPv6, decimal/octal IPs); injection test with hostile app name (`"; rm -rf /`, XML/Kotlin metacharacters) → build still succeeds and output is escaped; upload bombs; webhook replay; coupon race (parallel redemptions).
