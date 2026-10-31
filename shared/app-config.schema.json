@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "startUrl": {
+      "type": "string",
+      "pattern": "^https:\\/\\/\\S+$"
+    },
+    "packageName": {
+      "type": "string",
+      "pattern": "^[a-zA-Z]\\w*(\\.[a-zA-Z]\\w*)+$"
+    },
+    "appName": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "startUrl",
+    "packageName",
+    "appName"
+  ],
+  "additionalProperties": false
+}
