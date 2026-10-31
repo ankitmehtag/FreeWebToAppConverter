@@ -23,7 +23,7 @@ Automated totals: `shared` 22 of 22 passed, `server` 5 of 5 passed, typecheck 0 
 
 ## Known limits
 - The generated JSON schema can't express the Java reserved-word check or the full URL parse. Only the zod schema enforces those, so anything that validates `app_config` with the JSON schema alone is less strict.
-- The fresh-copy check used the files git would track, not a real `git clone`, because nothing is committed until sign-off.
+- After sign-off, AC3 was repeated from a real `git clone` of the first commit with a no-cache API build: all three services healthy, `/health` HTTP 200.
 - MongoDB and Redis have no local auth. They are reachable only on the internal Compose network. Production connection details are out of scope for F01.
 
 Sign-off: owner, 2026-11-01
