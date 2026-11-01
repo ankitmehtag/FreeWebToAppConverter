@@ -1,0 +1,65 @@
+import groovy.json.JsonSlurper
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+val sdk = JsonSlurper().parse(rootDir.resolve("version.json")) as Map<*, *>
+
+fun required(name: String): String =
+    providers.gradleProperty(name).orNull ?: throw GradleException("Missing Gradle property: $name")
+
+fun optional(name: String): String? = providers.gradleProperty(name).orNull
+
+android {
+    namespace = "com.sitetoapk.template"
+    compileSdk = sdk["compileSdk"] as Int
+
+    defaultConfig {
+        applicationId = required("applicationId")
+        minSdk = sdk["minSdk"] as Int
+        targetSdk = sdk["targetSdk"] as Int
+        versionCode = required("versionCode").toInt()
+        versionName = required("versionName")
+        resValue("string", "app_name", required("appName"))
+    }
+
+    signingConfigs {
+        optional("keystorePath")?.let { path ->
+            create("release") {
+                storeFile = file(path)
+                storePassword = required("keystorePass")
+                keyAlias = required("keyAlias")
+                keyPassword = required("keyPass")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    implementation(libs.appcompat)
+    implementation(libs.browser)
+    implementation(libs.core.ktx)
+    implementation(libs.core.splashscreen)
+    implementation(libs.swiperefresh)
+    implementation(libs.webkit)
+    testImplementation(libs.junit)
+    testImplementation(libs.org.json)
+}

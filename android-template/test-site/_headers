@@ -1,0 +1,3 @@
+/sample.pdf
+  Content-Disposition: attachment; filename="sample.pdf"
+  Content-Type: application/pdf

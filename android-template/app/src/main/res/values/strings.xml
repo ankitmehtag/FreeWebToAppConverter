@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="config_error">This app is not set up correctly. Please contact the app owner.</string>
+    <string name="offline_message">Can\'t load this page. Check your connection and try again.</string>
+    <string name="ssl_message">This page was blocked because its security certificate isn\'t valid.</string>
+    <string name="retry">Retry</string>
+    <string name="exit_message">Exit the app?</string>
+    <string name="exit_confirm">Exit</string>
+    <string name="exit_cancel">Cancel</string>
+    <string name="download_started">Download started</string>
+    <string name="download_blocked">This download was blocked because it isn\'t secure.</string>
+</resources>

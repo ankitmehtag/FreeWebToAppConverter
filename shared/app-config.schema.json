@@ -17,13 +17,61 @@
     "appName": {
       "type": "string",
       "minLength": 1
+    },
+    "internalHosts": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+$"
+      }
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "statusBarColor": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "unspecified",
+            "portrait",
+            "landscape"
+          ]
+        },
+        "zoom": {
+          "type": "boolean"
+        },
+        "progressBar": {
+          "type": "boolean"
+        },
+        "pullToRefresh": {
+          "type": "boolean"
+        },
+        "exitDialog": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "statusBarColor",
+        "orientation",
+        "zoom",
+        "progressBar",
+        "pullToRefresh",
+        "exitDialog"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
     "schemaVersion",
     "startUrl",
     "packageName",
-    "appName"
+    "appName",
+    "internalHosts",
+    "ui"
   ],
   "additionalProperties": false
 }

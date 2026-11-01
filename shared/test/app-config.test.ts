@@ -7,6 +7,15 @@ const valid = {
   startUrl: 'https://example.com/home',
   packageName: 'com.sitetoapk.example',
   appName: 'Example',
+  internalHosts: ['example.com'],
+  ui: {
+    statusBarColor: '#0F172A',
+    orientation: 'unspecified',
+    zoom: false,
+    progressBar: true,
+    pullToRefresh: true,
+    exitDialog: true,
+  },
 };
 
 const accepts = (config: unknown) => appConfigSchema.safeParse(config).success;
@@ -59,6 +68,37 @@ describe('AC13: packageName', () => {
     'com.example.',
   ])('rejects %s', (packageName) => {
     expect(accepts({ ...valid, packageName })).toBe(false);
+  });
+});
+
+describe('F02 AC1: Android settings', () => {
+  it('accepts the sample config used by the Android template', () => {
+    const path = '../../android-template/app/src/main/assets/app_config.json';
+    const sample = JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
+    expect(accepts(sample)).toBe(true);
+  });
+
+  it.each([[[]], [['https://example.com']], [['exa mple.com']], [['example.com/path']], ['example.com']])(
+    'rejects internalHosts %j',
+    (internalHosts) => {
+      expect(accepts({ ...valid, internalHosts })).toBe(false);
+    },
+  );
+
+  it.each(['red', '#FFF', '#GGGGGG', '0F172A'])('rejects statusBarColor %s', (statusBarColor) => {
+    expect(accepts({ ...valid, ui: { ...valid.ui, statusBarColor } })).toBe(false);
+  });
+
+  it('rejects an unknown orientation', () => {
+    expect(accepts({ ...valid, ui: { ...valid.ui, orientation: 'sideways' } })).toBe(false);
+  });
+
+  it.each(['zoom', 'progressBar', 'pullToRefresh', 'exitDialog'] as const)('requires a boolean %s', (toggle) => {
+    expect(accepts({ ...valid, ui: { ...valid.ui, [toggle]: 'yes' } })).toBe(false);
+  });
+
+  it('rejects config that tries to set the plan', () => {
+    expect(accepts({ ...valid, plan: 'premium' })).toBe(false);
   });
 });
 

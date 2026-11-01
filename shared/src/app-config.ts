@@ -28,6 +28,15 @@ export const appConfigSchema = z.strictObject({
       'Must not contain a Java reserved word',
     ),
   appName: z.string().trim().min(1),
+  internalHosts: z.array(z.string().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/)).min(1),
+  ui: z.strictObject({
+    statusBarColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    orientation: z.enum(['unspecified', 'portrait', 'landscape']),
+    zoom: z.boolean(),
+    progressBar: z.boolean(),
+    pullToRefresh: z.boolean(),
+    exitDialog: z.boolean(),
+  }),
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;

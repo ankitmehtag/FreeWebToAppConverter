@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>F02 test page</title>
+  <style>
+    body { font: 16px/1.3 sans-serif; margin: 0; padding: 12px; }
+    a, button { display: block; margin: 7px 0; padding: 5px 0; font-size: 16px; }
+    #stamp, #result { font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h3>F02 home</h3>
+  <p id="stamp"></p>
+  <p id="result">result: none</p>
+  <a href="page2.html">Internal page</a>
+  <a href="https://example.org/">External link</a>
+  <a href="https://example.org/" target="_blank">Blank external</a>
+  <a href="page2.html" target="_blank">Blank internal</a>
+  <button onclick="window.open('https://example.org/')">Popup external</button>
+  <a href="tel:+15551234567">Phone link</a>
+  <a href="mailto:test@example.com">Mail link</a>
+  <a href="market://details?id=com.android.chrome">Market link</a>
+  <a href="intent://example.org/#Intent;scheme=https;component=com.android.settings/.Settings;end">Intent component link</a>
+  <a href="http://sitetoapk-test.pages.dev/page2.html">Cleartext internal</a>
+  <a href="file:///system/etc/hosts">File link</a>
+  <button onclick="location.href='file:///system/etc/hosts'">File script</button>
+  <a href="https://accounts.google.com/">Google sign-in</a>
+  <a href="sample.pdf">Download PDF</a>
+  <input id="upload" type="file" accept="image/*" aria-label="Upload image">
+  <script>
+    document.getElementById('stamp').textContent = 'loaded: ' + Date.now();
+    document.getElementById('upload').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      document.getElementById('result').textContent = 'result: uploaded ' + file.name + ' ' + file.size;
+    });
+  </script>
+</body>
+</html>

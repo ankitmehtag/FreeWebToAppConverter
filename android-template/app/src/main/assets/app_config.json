@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "startUrl": "https://example.com/",
+  "packageName": "com.sitetoapk.sample",
+  "appName": "Sample App",
+  "internalHosts": ["example.com"],
+  "ui": {
+    "statusBarColor": "#0F172A",
+    "orientation": "unspecified",
+    "zoom": false,
+    "progressBar": true,
+    "pullToRefresh": true,
+    "exitDialog": true
+  }
+}

@@ -3,3 +3,9 @@ node_modules/
 .env.*
 !.env.example
 .DS_Store
+*.jks
+*.keystore
+.gradle/
+build/
+local.properties
+.kotlin/
