@@ -69,6 +69,7 @@ A Kotlin WebView app in `android-template/` that turns one `app_config.json` and
 - Test page: a small static page on Cloudflare Pages.
 - The JS bridge is left out of F02.
 - The app ignores `packageName` and `appName` in `app_config.json`.
+- F03 R3 replaces the app label part of R2: the label now comes from a generated resource, not a Gradle property.
 
 ## Open questions
 None.

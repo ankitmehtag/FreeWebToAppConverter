@@ -28,7 +28,7 @@ TASK="${1:-assembleRelease}"
   -PapplicationId=com.sitetoapk.sample \
   -PversionCode=1 \
   -PversionName=1.0 \
-  -PappName="Sample App" \
+  -PgeneratedDir="$PWD/sample" \
   -PkeystorePath="$KEYSTORE" \
   -PkeyAlias=test \
   "$@"

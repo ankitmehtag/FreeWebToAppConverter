@@ -73,7 +73,7 @@ describe('AC13: packageName', () => {
 
 describe('F02 AC1: Android settings', () => {
   it('accepts the sample config used by the Android template', () => {
-    const path = '../../android-template/app/src/main/assets/app_config.json';
+    const path = '../../android-template/sample/assets/app_config.json';
     const sample = JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
     expect(accepts(sample)).toBe(true);
   });
@@ -109,5 +109,33 @@ describe('AC14: valid config', () => {
 
   it('accepts underscores and digits after the first letter', () => {
     expect(accepts({ ...valid, packageName: 'com.site_to2.app' })).toBe(true);
+  });
+});
+
+describe('F03: appName', () => {
+  const named = (appName: string) => ({ ...valid, appName });
+
+  it('accepts hostile text that can be escaped', () => {
+    for (const name of ['"; rm -rf /', '</string><evil/>', '@string/x', '?attr/y', '%1$s', '\\u0041', "it's", '🚀 App', 'تطبيق']) {
+      expect(accepts(named(name))).toBe(true);
+    }
+  });
+
+  it('rejects text that cannot be written to XML', () => {
+    expect(accepts(named('bad\u0000name'))).toBe(false);
+    expect(accepts(named('two\nlines'))).toBe(false);
+    expect(accepts(named('bad\ud83dname'))).toBe(false);
+  });
+
+  it('rejects a name over 50 characters', () => {
+    expect(accepts(named('a'.repeat(50)))).toBe(true);
+    expect(accepts(named('a'.repeat(51)))).toBe(false);
+  });
+});
+
+describe('F03 AC11: watermark', () => {
+  it('rejects a watermark field', () => {
+    expect(accepts({ ...valid, watermark: false })).toBe(false);
+    expect(accepts({ ...valid, ui: { ...valid.ui, watermark: false } })).toBe(false);
   });
 });

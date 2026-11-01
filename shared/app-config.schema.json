@@ -16,7 +16,9 @@
     },
     "appName": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 50,
+      "pattern": "^[^\\p{Cc}\\p{Cs}]*$"
     },
     "internalHosts": {
       "minItems": 1,

@@ -12,6 +12,8 @@ fun required(name: String): String =
 
 fun optional(name: String): String? = providers.gradleProperty(name).orNull
 
+val generatedDir = required("generatedDir")
+
 android {
     namespace = "com.sitetoapk.template"
     compileSdk = sdk["compileSdk"] as Int
@@ -22,7 +24,17 @@ android {
         targetSdk = sdk["targetSdk"] as Int
         versionCode = required("versionCode").toInt()
         versionName = required("versionName")
-        resValue("string", "app_name", required("appName"))
+        buildConfigField("boolean", "WATERMARK", (optional("removeWatermark") != "true").toString())
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    // Everything specific to one app comes from here, written by the worker or `sample/`.
+    sourceSets["main"].apply {
+        res.srcDir(file(generatedDir).resolve("res"))
+        assets.srcDir(file(generatedDir).resolve("assets"))
     }
 
     signingConfigs {

@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         val loaded = AppConfig.parse(readConfig())
         if (loaded == null) {
             setContentView(R.layout.activity_config_error)
+            applyWatermark()
             return
         }
         config = loaded
@@ -74,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         messageText = findViewById(R.id.message_text)
 
         applyUi()
+        applyWatermark()
         findViewById<Button>(R.id.retry).setOnClickListener { retry() }
         refresh.setOnRefreshListener { webView.reload() }
         // SwipeRefreshLayout keeps its first child for good, so the WebView sits in a
@@ -95,6 +97,11 @@ class MainActivity : AppCompatActivity() {
         assets.open("app_config.json").bufferedReader().use { it.readText() }
     } catch (_: IOException) {
         null
+    }
+
+    // Shown by the layout, so that only an explicit Premium build can hide it.
+    private fun applyWatermark() {
+        if (!BuildConfig.WATERMARK) findViewById<View>(R.id.watermark).visibility = View.GONE
     }
 
     private fun applyUi() {
