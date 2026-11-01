@@ -35,6 +35,25 @@ Status: all criteria pass, signed off by the owner on 2026-11-01.
 | `statusBarColor` | `#0F172A` shown | `#B91C1C` shown |
 | `orientation` | `portrait` stayed at rotation 0 with the device turned | `landscape` gave rotation 1; `unspecified` followed the device |
 
+## Final build rerun on the phone
+Run after sign-off on the merged code, on the moto g35 5G, with no app crashes logged.
+
+| Check | Result |
+|---|---|
+| Cleartext and `file:` links stay on the page | pass |
+| External, `target=_blank`, popup and intent links open Chrome | pass |
+| `mailto:` opens Gmail compose | pass |
+| `tel:` and `market:` reach the Android chooser | pass, no choice made in the chooser |
+| Google link opens `CustomTabActivity` | pass |
+| Internal page, back, exit dialog; blank internal | pass |
+| Exit dialog off closes the app | pass |
+| Pull-to-refresh on and off | pass |
+| Download and upload | pass |
+| SSL block and config error screen | pass |
+| Landscape | pass, display 2400x1080 |
+| Renderer crash recovery | pass, logged crash then `F02 home` |
+| Offline screen and retry | not proven on the phone: the page still loaded in airplane mode, and the rerun with all networks off lost USB. Passed on the emulator on the final code |
+
 ## Fixed during verification
 - AC16 first failed: the app survived a renderer death but stayed blank, because `SwipeRefreshLayout` keeps its first child for good. The WebView now sits in a permanent `web_container`, and pull-to-refresh was retested.
 
