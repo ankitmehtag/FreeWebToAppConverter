@@ -5,12 +5,17 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "start": "tsx src/main.ts",
+    "enqueue": "tsx scripts/enqueue.ts"
   },
   "dependencies": {
     "@sitetoapk/shared": "*",
     "sharp": "0.35.5",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "bullmq": "^5.0.0",
+    "mongodb": "^7.8.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

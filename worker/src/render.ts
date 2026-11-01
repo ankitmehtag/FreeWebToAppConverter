@@ -12,6 +12,7 @@ const renderInputSchema = z.object({
   plan: z.enum(['free', 'premium']),
   versionCode: z.number().int().min(1).max(2100000000),
   versionName: z.string().regex(/^\d+(\.\d+){0,3}$/),
+  parentDir: z.string().optional(),
 });
 
 export type RenderInput = z.input<typeof renderInputSchema>;
@@ -30,10 +31,10 @@ const generatedXml = (appName: string, splash: string, iconBackground: string) =
  * build only through the files written here, each escaped for its format.
  */
 export const render = async (input: RenderInput) => {
-  const { config, iconPath, plan, versionCode, versionName } = renderInputSchema.parse(input);
+  const { config, iconPath, plan, versionCode, versionName, parentDir } = renderInputSchema.parse(input);
   const icon = await readIcon(iconPath);
 
-  const dir = await mkdtemp(join(tmpdir(), 'sitetoapk-render-'));
+  const dir = await mkdtemp(join(parentDir ?? tmpdir(), 'sitetoapk-render-'));
   try {
     const color = config.ui.statusBarColor;
     const { background } = await generateIcons(icon, dir, color);

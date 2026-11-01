@@ -12,6 +12,10 @@ fun required(name: String): String =
 
 fun optional(name: String): String? = providers.gradleProperty(name).orNull
 
+// Builder containers mount passwords as files, so they never reach the environment.
+fun secret(name: String): String =
+    optional("${name}File")?.let { file(it).readText().trim() } ?: required(name)
+
 val generatedDir = required("generatedDir")
 
 android {
@@ -41,9 +45,9 @@ android {
         optional("keystorePath")?.let { path ->
             create("release") {
                 storeFile = file(path)
-                storePassword = required("keystorePass")
+                storePassword = secret("keystorePass")
                 keyAlias = required("keyAlias")
-                keyPassword = required("keyPass")
+                keyPassword = secret("keyPass")
             }
         }
     }

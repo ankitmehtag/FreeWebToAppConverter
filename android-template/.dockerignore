@@ -1,0 +1,7 @@
+**/build
+**/.gradle
+**/.kotlin
+test-site
+local.properties
+*.jks
+*.keystore
