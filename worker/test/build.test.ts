@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { UnrecoverableError } from 'bullmq';
@@ -8,6 +8,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { processBuild, type BuildDeps, type Run } from '../src/build';
 import { createBuild } from '../src/builds';
 import { config, iconFile, tempFile } from './helpers';
+import type { Storage } from '../src/storage';
 
 const mongo = await new MongoClient('mongodb://127.0.0.1:27017').connect();
 const builds = mongo.db('sitetoapk_test').collection('builds_unit');
@@ -25,15 +26,30 @@ const fakeRun = (compile: Partial<Awaited<ReturnType<Run>>> = {}, verifyFacts = 
 };
 
 let deps: BuildDeps;
+let uploads: { key: string; body: Buffer }[] = [];
 
-const setup = async (run: Run) => {
+const fakeStorage = (fail = false): Storage => ({
+  put: async (key, path) => {
+    if (fail) throw new Error('storage down');
+    const body = readFileSync(path);
+    uploads.push({ key, body });
+    return body.length;
+  },
+  signedLink: async () => '',
+  remove: async () => undefined,
+  applyLifecycle: async () => undefined,
+  readLifecycle: async () => [],
+});
+
+const setup = async (run: Run, storage = fakeStorage()) => {
+  uploads = [];
   deps = {
     builds,
     run,
     image: 'sitetoapk-builder:test',
     timeoutMs: 1000,
     workRoot: mkdtempSync(join(tmpdir(), 'f04-work-')),
-    artifactsDir: mkdtempSync(join(tmpdir(), 'f04-artifacts-')),
+    storage,
     signing: {
       keystorePath: tempFile('key.jks', 'keystore'),
       storePassword: 'STORE_SECRET',
@@ -60,7 +76,10 @@ describe('AC9: a good build', () => {
     const build = await load(id);
     expect(build?.history).toEqual(['queued', 'building', 'signing', 'uploading', 'success']);
     expect(build?.sha256).toBe(createHash('sha256').update(apk).digest('hex'));
-    expect(readFileSync(build?.apkPath)).toEqual(apk);
+    expect(build?.artifactKey).toBe(`free/${id}.apk`);
+    expect(build?.artifactBytes).toBe(apk.length);
+    expect(build?.expiresAt.getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
+    expect(uploads).toEqual([{ key: `free/${id}.apk`, body: apk }]);
   });
 
   it('ignores a build that has already finished', async () => {
@@ -96,7 +115,7 @@ describe('AC10: a failed check', () => {
     const build = await load(id);
     expect(build?.status).toBe('failed');
     expect(build?.error).toContain('package');
-    expect(readdirSync(deps.artifactsDir)).toEqual([]);
+    expect(uploads).toEqual([]);
   });
 });
 
@@ -126,6 +145,24 @@ describe('AC11: retries', () => {
     const id = await setup(fakeRun({ code: 125 }));
     await expect(processBuild(deps, id, attempt(2))).rejects.toThrow();
     expect((await load(id))?.status).toBe('failed');
+  });
+});
+
+describe('AC4, AC5: failed upload', () => {
+  it('retries, and never shows success', async () => {
+    const id = await setup(fakeRun(), fakeStorage(true));
+    await expect(processBuild(deps, id, attempt())).rejects.toThrow('storage down');
+    const build = await load(id);
+    expect(build?.status).toBe('queued');
+    expect(build?.history).not.toContain('success');
+    expect(existsSync(join(deps.workRoot, id))).toBe(false);
+  });
+
+  it('fails for good on the last attempt, leaving no APK', async () => {
+    const id = await setup(fakeRun(), fakeStorage(true));
+    await expect(processBuild(deps, id, attempt(2))).rejects.toThrow();
+    expect((await load(id))?.status).toBe('failed');
+    expect(existsSync(join(deps.workRoot, id))).toBe(false);
   });
 });
 

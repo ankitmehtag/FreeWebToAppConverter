@@ -9,3 +9,9 @@ docker build --platform linux/amd64 --build-arg VERSION_SHA=$(shasum -a 256 vers
 ```
 
 Start it with `npm start -w worker`, using the worker settings in `.env.example`.
+
+Build one app without the queue, and print its download link:
+
+```sh
+npm run build-app -w worker -- /path/to/config.json /path/to/icon.png
+```

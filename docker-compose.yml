@@ -44,6 +44,17 @@ services:
       timeout: 5s
       retries: 10
 
+  # Stands in for R2 in automated tests. Its credentials are local only.
+  s3:
+    image: chrislusf/seaweedfs@sha256:c2658820e763294a9e9de7b36c81e59b879e3459148351aee4e31a126ca64860
+    command: ["server", "-dir=/data", "-s3", "-s3.port=9000", "-s3.config=/etc/seaweed/s3.json"]
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - ./dev/seaweed-s3.json:/etc/seaweed/s3.json:ro
+      - s3-data:/data
+
 volumes:
+  s3-data:
   mongo-data:
   redis-data:

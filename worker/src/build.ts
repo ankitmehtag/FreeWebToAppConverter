@@ -6,6 +6,7 @@ import type { Collection } from 'mongodb';
 import { setStatus, type BuildRequest } from './builds';
 import { containerName, removeContainer, type BuildMounts, type runContainer } from './container';
 import { render } from './render';
+import { artifactKey, FREE_RETENTION_DAYS, type Storage } from './storage';
 import { checkBuild } from './verify';
 
 export type Run = typeof runContainer;
@@ -24,7 +25,7 @@ export type BuildDeps = {
   image: string;
   timeoutMs: number;
   workRoot: string;
-  artifactsDir: string;
+  storage: Storage;
   signing: Signing;
 };
 
@@ -122,12 +123,12 @@ export const processBuild = async (
     await verify(deps, build, mounts, apk);
 
     await setStatus(deps.builds, buildId, 'uploading');
-    await mkdir(deps.artifactsDir, { recursive: true });
-    const apkPath = join(deps.artifactsDir, `${buildId}.apk`);
-    await copyFile(apk, apkPath);
-    const sha256 = createHash('sha256').update(await readFile(apkPath)).digest('hex');
+    const sha256 = createHash('sha256').update(await readFile(apk)).digest('hex');
+    const key = artifactKey(build.plan, buildId);
+    const artifactBytes = await deps.storage.put(key, apk);
+    const expiresAt = new Date(Date.now() + FREE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
-    await setStatus(deps.builds, buildId, 'success', { apkPath, sha256 });
+    await setStatus(deps.builds, buildId, 'success', { artifactKey: key, artifactBytes, sha256, expiresAt });
   } catch (error) {
     const message = (error as Error).message;
     if (error instanceof BuildFailure) {

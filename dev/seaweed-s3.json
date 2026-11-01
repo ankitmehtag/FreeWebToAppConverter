@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "local",
+      "credentials": [{ "accessKey": "sitetoapk-local", "secretKey": "sitetoapk-local-only" }],
+      "actions": ["Admin", "Read", "Write", "List"]
+    }
+  ]
+}
