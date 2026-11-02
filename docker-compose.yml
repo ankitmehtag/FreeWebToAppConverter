@@ -44,6 +44,13 @@ services:
       timeout: 5s
       retries: 10
 
+  # Catches local mail. Its inbox is at http://127.0.0.1:8025.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
   # Stands in for R2 in automated tests. Its credentials are local only.
   s3:
     image: chrislusf/seaweedfs@sha256:c2658820e763294a9e9de7b36c81e59b879e3459148351aee4e31a126ca64860
