@@ -21,7 +21,7 @@ const verify = z.strictObject({ token });
 
 const DUPLICATE_KEY = 11000;
 
-const allowOrigin = ({ config }: Auth) => (req: Request, res: Response, next: NextFunction) => {
+export const allowOrigin = ({ config }: Auth) => (req: Request, res: Response, next: NextFunction) => {
   const origin = req.get('origin');
   if (origin && origin !== config.appUrl) {
     res.status(403).json({ error: 'Origin not allowed' });
@@ -36,12 +36,12 @@ const allowOrigin = ({ config }: Auth) => (req: Request, res: Response, next: Ne
   else next();
 };
 
-const invalid: ErrorRequestHandler = (error, _req, res, _next) => {
+export const invalid: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof z.ZodError || (error as { type?: string }).type === 'entity.parse.failed') {
     res.status(400).json({ error: 'Invalid request' });
     return;
   }
-  console.error('Auth request failed');
+  console.error('Request failed');
   res.status(500).json({ error: 'Something went wrong' });
 };
 

@@ -3,6 +3,7 @@ import { MongoClient } from 'mongodb';
 import { createApp } from './app';
 import { prepareAuth } from './auth';
 import { resendMailer, smtpMailer } from './auth/mailer';
+import { createFetcher } from './url/fetcher';
 
 const requireEnv = (name: string) => {
   const value = process.env[name];
@@ -75,6 +76,7 @@ const app = createApp({
     await redis.ping();
   },
   auth,
+  fetchUrl: createFetcher(),
 });
 
 const server = app.listen(port, () => console.log(`API listening on port ${port}`));

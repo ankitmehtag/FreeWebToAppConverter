@@ -6,10 +6,11 @@ import { MongoClient } from 'mongodb';
 import { createApp } from '../src/app';
 import type { AuthConfig, Mail } from '../src/auth/types';
 import { prepareAuth } from '../src/auth';
+import type { FetchUrl } from '../src/url/fetcher';
 
 export const APP_URL = 'http://app.test';
 
-export const makeHarness = async (config: Partial<AuthConfig> = {}) => {
+export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: FetchUrl) => {
   const mongo = await new MongoClient('mongodb://127.0.0.1:27017').connect();
   const db = mongo.db(`auth_test_${randomUUID().slice(0, 8)}`);
   const redis = new Redis('redis://127.0.0.1:6379', { keyPrefix: `test:${randomUUID()}:` });
@@ -35,7 +36,7 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}) => {
       ...config,
     },
   });
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth }).listen(0);
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
