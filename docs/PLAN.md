@@ -16,8 +16,8 @@ These override anything below that says otherwise. Feature order and status are 
 | Item | Decision |
 |---|---|
 | Folder | `WebToAppCOnverter/{client,server,worker,android-template,shared}` (one repo). `shared/` holds zod schemas + the `app_config` JSON schema used by server, worker and template |
-| Product name | SiteToApk, with `com.sitetoapk.*` packages. `sitetoapk.com` is already registered, so whether the brand and package prefix change to match the planned domain is still open, and must be settled before any package name is issued, because package names can't change later. |
-| Domain | `freewebsitetoappconverter.com`, to be purchased later. |
+| Product name | Free Website to App Converter, matching the domain. The Android package prefix stays `com.sitetoapk.*`, because it never shows to users and package names can't change later. |
+| Domain | `freewebsitetoappconverter.com`, purchased. |
 | Plans | Free and Premium only. Starter is dropped from the MVP. |
 | Email | Verify and reset emails move to Phase 1, via Resend, with Mailpit locally. |
 | Free tier | Watermark only in Phase 1, no ads. |

@@ -30,7 +30,7 @@ Turn one validated app record and one uploaded icon into the files a build needs
 - R10: The adaptive icon must use a plain background, with an alpha check so that a transparent logo stays visible.
 
 ### Watermark
-- R11: On the Free plan the app must show a native "Made with SiteToApk" label that is not part of the web page.
+- R11: On the Free plan the app must show a native "Made with Free Website to App Converter" label that is not part of the web page.
 - R12: The watermark must be switched by a Gradle property set by the worker from the plan, never by `app_config.json`. The Free state must be the default, so a missing property shows the watermark.
 - R13: The app must ignore any watermark-like field in `app_config.json`, and the schema must reject it.
 - R14: The watermark must stay visible on the page, offline, SSL and error screens, must not cover page content, and must not intercept taps meant for the page.
@@ -52,7 +52,7 @@ Turn one validated app record and one uploaded icon into the files a build needs
 
 ## Decisions
 - `render` lives in a new `worker` npm workspace, so `sharp` does not reach `client` or `shared`.
-- The watermark is a strip of about 24dp under the WebView, reading "Made with SiteToApk" in small text. It is not tappable, and it takes its own space, so it covers nothing.
+- The watermark is a strip of about 24dp under the WebView, reading "Made with Free Website to App Converter" on one line in small text. It is not tappable, and it takes its own space, so it covers nothing.
 - R12 stops config edits. Someone who decompiles an APK can always remove a label, so that is out of scope.
 - The adaptive icon background is `ui.statusBarColor` when the logo is transparent, and white otherwise.
 - A transparent logo is accepted. A non-square logo is rejected with a clear message and is not cropped.

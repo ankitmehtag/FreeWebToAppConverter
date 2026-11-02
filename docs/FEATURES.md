@@ -1,4 +1,4 @@
-# SiteToApk features
+# Free Website to App Converter features
 
 The status tracker for every feature. The workflow is in [specs/README.md](specs/README.md), and the full product plan is in [PLAN.md](PLAN.md).
 
@@ -53,4 +53,5 @@ Android build tools are x86-64 on Linux, so an Apple Silicon Mac runs the builde
 
 - F05: Cloudflare R2
 - F06: Resend, Google OAuth client
+- Before launch: verify `freewebsitetoappconverter.com` in Resend, and add its callback URL to the Google OAuth client
 - F10: Google Safe Browsing API key

@@ -69,7 +69,7 @@ const send = (url: URL, pinned: ResolvedAddress, signal: AbortSignal, maxBytes: 
         agent: false,
         signal,
         lookup: pin,
-        headers: { accept: 'text/html,*/*', 'accept-encoding': 'identity', 'user-agent': 'SiteToApk-URL-Check' },
+        headers: { accept: 'text/html,*/*', 'accept-encoding': 'identity', 'user-agent': 'FreeWebsiteToAppConverter-URL-Check' },
       },
       (response) => {
         const page = { url: url.toString(), status: response.statusCode ?? 0, headers: response.headers };
