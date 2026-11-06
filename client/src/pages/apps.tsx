@@ -11,6 +11,7 @@ export type AppView = {
   locked: boolean;
   hasIcon: boolean;
   latestBuild?: BuildView;
+  takenDown?: { reason: string; at: string };
   createdAt: string;
   updatedAt: string;
 };

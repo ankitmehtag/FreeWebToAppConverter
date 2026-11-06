@@ -19,7 +19,7 @@ Only one feature is in progress at a time. The riskiest part (website to working
 | **F07 URL safety** | SSRF-safe fetcher and URL checker | Passes private IP, metadata IP, redirect, DNS rebinding, IPv6, decimal and octal IP cases | done |
 | **F08 App creation** | App records, wizard steps, site prefill, permissions, phone preview | Users can't reach each other's apps; package name locks after first build; refresh keeps the draft; built APK requests only expected permissions; preview works on an embeddable and a blocking site | done |
 | **F09 Build experience** | Start build, live logs, My Apps, download, QR install | Double-click creates one build; parallel requests never reuse a versionCode; 3/day limit enforced; no secrets in logs; QR install works on a real phone | done |
-| **F10 Abuse protection** | Safe Browsing, brand denylist, report link, takedown | Google's test URL blocked; takedown revokes the download link | not started |
+| **F10 Abuse protection** | Safe Browsing, report link, takedown (brand denylist removed by the owner) | Google's test URL blocked; takedown revokes the download link | done |
 | **F11 Public website** | Landing, pricing, FAQ, legal, SEO, URL checker | Pages render on mobile and desktop; checker uses F07 | not started |
 | **F12 MVP sign-off** | Playwright end-to-end, 20-build load test, sample build script | Sign up, create, build, install and site load are automated; load test shows no orphans, leaks or secrets | not started |
 
@@ -54,4 +54,4 @@ Android build tools are x86-64 on Linux, so an Apple Silicon Mac runs the builde
 - F05: Cloudflare R2
 - F06: Resend, Google OAuth client
 - Before launch: add the `freewebsitetoappconverter.com` callback URL to the Google OAuth client. The domain is verified in Resend (2026-11-06).
-- F10: Google Safe Browsing API key
+- Before launch: a Google Web Risk API key on its free tier, to switch on F10's unsafe-site check

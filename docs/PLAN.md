@@ -25,6 +25,7 @@ These override anything below that says otherwise. Feature order and status are 
 | Backend | Express and MongoDB as planned, not the InsForge backend in `~/AGENTS.md`. |
 | Queue | **[FIX]** Agenda is in maintenance mode; use **BullMQ + Redis** (retries, concurrency, rate limit, stalled-job recovery). Mongo `builds` stays the source of truth for status. |
 | Object storage | Cloudflare R2 (S3 API, no egress fee). |
+| Brand denylist | Removed (2026-11-07): any website can become an app under any name. Abuse is handled by the unsafe-site check, reports and takedowns. |
 
 ## Architecture
 ```

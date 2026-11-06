@@ -137,6 +137,14 @@ describe('F09 AC6, AC8: the build page', () => {
     expect(await screen.findByText(text)).toBeInTheDocument();
   });
 
+  it('says a taken-down app’s APK was removed, with no download', async () => {
+    routes['GET /builds/b1'] = () => json(build({ status: 'success', expired: true, removed: true }));
+    page();
+    expect(await screen.findByText(/taken down for breaking our rules/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Download APK' })).toBeNull();
+    expect(screen.queryByText(/kept for 7 days/)).toBeNull();
+  });
+
   it('offers a new build when the APK has expired', async () => {
     routes['GET /builds/b1'] = () => json(build({ status: 'success', expired: true }));
     page();
@@ -171,6 +179,20 @@ describe('F09 AC10: the install page', () => {
     routes['GET /builds/install/tok'] = () => json({ error: 'Too many requests' }, 429);
     page();
     expect(await screen.findByRole('heading', { name: 'Too many tries' })).toBeInTheDocument();
+  });
+
+  it('sends a report with no account, and thanks the reporter', async () => {
+    routes['GET /builds/install/tok'] = () => json({ appName: 'Proof Shop', versionName: '1.0', versionCode: 1, artifactBytes: 1000 });
+    routes['POST /reports'] = () => json({ status: 'received' }, 202);
+    const user = userEvent.setup();
+    page();
+    await user.click(await screen.findByRole('button', { name: 'Report this app' }));
+    expect(screen.getByRole('button', { name: 'Send report' })).toBeDisabled();
+    await user.click(screen.getByRole('radio', { name: /pretends to be another company/ }));
+    await user.type(screen.getByRole('textbox', { name: /Details/ }), 'Copies my bank');
+    await user.click(screen.getByRole('button', { name: 'Send report' }));
+    expect(await screen.findByText(/We’ll look at this app/)).toBeInTheDocument();
+    expect(calls.find((call) => call.path === '/reports')?.body).toEqual({ token: 'tok', reason: 'impersonation', details: 'Copies my bank' });
   });
 
   it('says an expired link has expired', async () => {

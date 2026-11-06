@@ -246,6 +246,20 @@ describe('F09 AC5: a website build', () => {
   });
 });
 
+describe('F10 AC9: takedown during a build', () => {
+  it('fails the build before upload, so no APK is published', async () => {
+    const apps = mongo.db('sitetoapk_test').collection('apps_unit');
+    const id = await setup(fakeRun());
+    deps.apps = apps;
+    const appId = new ObjectId();
+    await apps.insertOne({ _id: appId, takenDown: { reason: 'Phishing', at: new Date(), by: 'ops' } });
+    await builds.updateOne({ _id: id as never }, { $set: { appId } });
+    await expect(processBuild(deps, id, attempt())).rejects.toBeInstanceOf(UnrecoverableError);
+    expect(await load(id)).toMatchObject({ status: 'failed', failureKind: 'input', error: 'App taken down' });
+    expect(uploads).toEqual([]);
+  });
+});
+
 describe('F09 AC8: failure kinds', () => {
   it.each([
     ['timeout', fakeRun({ timedOut: true, code: null })],

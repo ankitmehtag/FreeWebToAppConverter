@@ -8,6 +8,8 @@ import { createApp } from '../src/app';
 import { prepareApps } from '../src/apps';
 import { createIconStore } from '../src/apps/icons';
 import { prepareBuilds, type BuildsConfig } from '../src/builds';
+import { createUnsafeChecker, type UnsafeLookup } from '../src/abuse/unsafe';
+import { prepareReports } from '../src/abuse/reports';
 import { s3Client } from '@sitetoapk/shared/s3';
 import type { AuthConfig, Mail } from '../src/auth/types';
 import { prepareAuth } from '../src/auth';
@@ -37,7 +39,12 @@ const testIconStore = async () => {
   return { bucket, icons: createIconStore({ ...localS3, bucket }) };
 };
 
-export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: FetchUrl, buildsConfig: Partial<BuildsConfig> = {}) => {
+export const makeHarness = async (
+  config: Partial<AuthConfig> = {},
+  fetchUrl?: FetchUrl,
+  buildsConfig: Partial<BuildsConfig> = {},
+  { trustProxy, unsafeLookup }: { trustProxy?: string; unsafeLookup?: UnsafeLookup } = {},
+) => {
   const mongo = await new MongoClient('mongodb://127.0.0.1:27017').connect();
   const db = mongo.db(`auth_test_${randomUUID().slice(0, 8)}`);
   const redis = new Redis('redis://127.0.0.1:6379', { keyPrefix: `test:${randomUUID()}:` });
@@ -75,7 +82,8 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: F
     storage: icons,
     config: { dailyLimit: 3, windowMs: 24 * 60 * 60 * 1000, ...buildsConfig },
   });
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds }).listen(0);
+  const reports = await prepareReports(db, 'abuse@example.com');
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
@@ -132,6 +140,7 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: F
     users: db.collection('users'),
     apps: apps.apps,
     builds: builds.builds,
+    reports: reports.reports,
     jobs,
     icons,
     bucket,

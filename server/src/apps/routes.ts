@@ -8,6 +8,7 @@ import type { Auth } from '../auth';
 import { limitRoute } from '../auth/limits';
 import { allowOrigin, invalid } from '../auth/routes';
 import { requireCsrf, requireSession } from '../auth/session';
+import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } from '../abuse/unsafe';
 import type { FetchUrl } from '../url/fetcher';
 import { iconKey } from './icons';
 import { MAX_APPS_PER_USER, type Apps } from './index';
@@ -28,11 +29,16 @@ const view = (app: Document, latestBuild?: Document) => ({
   ready: app.ready,
   locked: Boolean(app.lockedAt),
   hasIcon: Boolean(app.iconKey),
+  takenDown: app.takenDown ? { reason: app.takenDown.reason, at: app.takenDown.at } : undefined,
   createdAt: app.createdAt,
   updatedAt: app.updatedAt,
 });
 
 const ownerOf = (res: Response) => res.locals.session.userId as ObjectId;
+
+/** A taken-down app can't be changed or built until it is restored. */
+const takenDown = (res: Response, app: Document) =>
+  res.status(403).json({ error: `This app was taken down: ${app.takenDown.reason}`, reason: 'taken_down' });
 
 /** Another user's app and a missing one look the same, so ids can't be probed. */
 const appFilter = (res: Response, id: unknown) =>
@@ -45,6 +51,7 @@ const duplicateName = (res: Response) =>
 
 const isDuplicate = (error: unknown) => (error as { code?: number }).code === DUPLICATE_KEY;
 
+
 /** Answers with an error per field, so that the wizard can show each one next to its input. */
 const fieldErrors: ErrorRequestHandler = (error, _req, res, next) => {
   if (error instanceof IconError) return res.status(400).json({ error: 'Invalid request', fields: { icon: error.message } });
@@ -56,7 +63,25 @@ const fieldErrors: ErrorRequestHandler = (error, _req, res, next) => {
   res.status(400).json({ error: 'Invalid request', fields });
 };
 
-export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUrl, builds?: Builds) => {
+/** The fields whose sites are on the unsafe list. Only changed sites are checked, and it fails open. */
+const unsafeFields = async (unsafe: UnsafeChecker | undefined, draft: Draft, before: Draft = {}) => {
+  if (!unsafe) return null;
+  const sameHosts = JSON.stringify(draft.internalHosts ?? []) === JSON.stringify(before.internalHosts ?? []);
+  const checks: [string, string[]][] = [
+    ['startUrl', draft.startUrl && draft.startUrl !== before.startUrl ? [draft.startUrl] : []],
+    ['internalHosts', sameHosts ? [] : (draft.internalHosts ?? []).map(hostUrl)],
+  ];
+  try {
+    for (const [field, urls] of checks) {
+      if (urls.length && (await unsafe(urls)) === 'unsafe') return { [field]: UNSAFE_MESSAGE };
+    }
+  } catch (error) {
+    if (!(error instanceof UnsafeCheckUnavailable)) throw error;
+  }
+  return null;
+};
+
+export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUrl, builds?: Builds, unsafe?: UnsafeChecker) => {
   const router = Router();
   const session = requireSession(auth);
   const csrf = requireCsrf(auth);
@@ -84,6 +109,8 @@ export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUr
 
   router.post('/', csrf, async (req, res) => {
     const draft = draftSchema.parse(req.body);
+    const listed = await unsafeFields(unsafe, draft);
+    if (listed) return res.status(400).json({ error: 'Invalid request', fields: listed });
     const ownerId = ownerOf(res);
     if ((await apps.countDocuments({ ownerId })) >= MAX_APPS_PER_USER) {
       res.status(409).json({ error: `You can have up to ${MAX_APPS_PER_USER} apps` });
@@ -107,7 +134,7 @@ export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUr
     });
   }
 
-  if (builds) router.post('/:id/builds', csrf, limitRoute(auth, 'build-start'), startBuild(auth, apps, builds));
+  if (builds) router.post('/:id/builds', csrf, limitRoute(auth, 'build-start'), startBuild(auth, apps, builds, { fetchUrl, unsafe }));
 
   router.get('/:id', async (req, res) => {
     const filter = appFilter(res, req.params.id);
@@ -132,6 +159,9 @@ export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUr
 
     const current = await apps.findOne(filter);
     if (!current) return notFound(res);
+    if (current.takenDown) return takenDown(res, current);
+    const listed = await unsafeFields(unsafe, draft, current.draft);
+    if (listed) return res.status(400).json({ error: 'Invalid request', fields: listed });
 
     // The lock is part of the filter, so that a build finishing mid-save can't be raced.
     const unlockedOrSameName = [{ lockedAt: null }, ...(draft.packageName ? [{ 'draft.packageName': draft.packageName }] : [])];
@@ -170,6 +200,7 @@ export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUr
     const filter = appFilter(res, req.params.id);
     const app = filter && (await apps.findOne(filter));
     if (!filter || !app) return notFound(res);
+    if (app.takenDown) return takenDown(res, app);
 
     const icon = await checkIcon(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
     const key = iconKey(String(app._id));

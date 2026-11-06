@@ -9,7 +9,7 @@ import { SessionProvider } from '../src/session';
 
 type Call = { method: string; path: string; body?: unknown };
 let calls: Call[];
-let stored: { draft: Draft; hasIcon: boolean; locked: boolean };
+let stored: { draft: Draft; hasIcon: boolean; locked: boolean; ready?: boolean; takenDown?: { reason: string; at: string } };
 let urlCheck: unknown;
 
 const view = () => ({ id: 'a1', ready: false, createdAt: '', updatedAt: 'v1', ...stored });
@@ -108,6 +108,13 @@ describe('AC10: a site must be reachable and use HTTPS', () => {
     expect(puts()).toHaveLength(0);
   });
 
+  it('stops a site on the unsafe list and says why', async () => {
+    urlCheck = { reachable: false, failure: 'unsafe' };
+    await tryUrl('https://testsafebrowsing.appspot.com/s/phishing.html');
+    expect(await screen.findByText(/list of unsafe sites/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
+  });
+
   it('stops an unreachable site and says why', async () => {
     urlCheck = { reachable: false, failure: 'unreachable' };
     await tryUrl('down.example');
@@ -138,5 +145,17 @@ describe('AC15: phone preview', () => {
     expect(screen.queryByTitle(/Live preview/)).toBeNull();
     expect(screen.getByText(/doesn’t allow itself to be shown/)).toBeInTheDocument();
     expect(screen.getByText(/real app isn’t affected/)).toBeInTheDocument();
+  });
+});
+
+describe('F10 AC9: a taken-down app', () => {
+  it('tells the owner why, and offers no build', async () => {
+    stored.draft = { startUrl: 'https://example.com/', appName: 'Example', packageName: 'com.example.app', ui: { statusBarColor: '#0F172A' } };
+    stored.hasIcon = true;
+    stored.ready = true;
+    stored.takenDown = { reason: 'Phishing a bank login', at: '2026-11-07T10:00:00Z' };
+    open('review');
+    expect(await screen.findByText(/taken down: Phishing a bank login/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Build app' })).toBeNull();
   });
 });

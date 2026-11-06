@@ -14,6 +14,8 @@ export type BuildView = {
   sha256?: string;
   expiresAt?: string;
   expired: boolean;
+  /** The APK was deleted by a takedown. */
+  removed?: boolean;
   createdAt: string;
 };
 
@@ -168,7 +170,13 @@ export const BuildPage = () => {
         </div>
       )}
 
-      {build.status === 'success' && build.expired && (
+      {build.status === 'success' && build.removed && (
+        <div className="check check-bad" role="status">
+          <p>This app was taken down for breaking our rules, so its APK was removed.</p>
+        </div>
+      )}
+
+      {build.status === 'success' && build.expired && !build.removed && (
         <div className="check check-bad" role="status">
           <p>Free builds are kept for 7 days, and this one has expired.</p>
           <Link to={`/my-apps/${appId}/review`} className="small-link">Start a new build</Link>

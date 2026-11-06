@@ -37,6 +37,7 @@ const FAILURES: Record<string, string> = {
   unreachable: 'We couldn’t reach that site. Check the address, or try again once the site is up.',
   timeout: 'The site took longer than 10 seconds to answer. Try again in a moment.',
   too_large: 'The page is larger than 2 MB, so we couldn’t check it.',
+  unsafe: 'This site is on a list of unsafe sites, such as malware or phishing, so it can’t become an app.',
 };
 
 /** Checks the draft with the same rules as the server, and words each problem for people. */
@@ -258,7 +259,7 @@ export const Wizard = () => {
 
   const index = STEPS.findIndex((item) => item.id === step);
   const urlChanged = normaliseUrl(urlInput) !== (draft.startUrl ?? '');
-  const canLeaveBasics = Boolean(draft.startUrl) && !urlChanged && (check === undefined || passes(check));
+  const canLeaveBasics = Boolean(draft.startUrl) && !urlChanged && !errors.startUrl && (check === undefined || passes(check));
   const iconUrl = app.hasIcon ? `/apps/${id}/icon?v=${encodeURIComponent(app.updatedAt)}` : undefined;
   const offered = offer?.reachable ? offer : undefined;
   const ui = { ...DEFAULT_BEHAVIOUR, ...draft.ui };
@@ -279,6 +280,14 @@ export const Wizard = () => {
 
   return (
     <main className="wizard">
+      {app.takenDown && (
+        <div className="check check-bad taken-down" role="alert">
+          <p>
+            This app was taken down: {app.takenDown.reason}. It can’t be changed or built, and its APKs were removed. If you think this
+            is a mistake, contact us and give the app’s name.
+          </p>
+        </div>
+      )}
       <div className="wizard-head">
         <Link to="/my-apps" className="small-link">← Your apps</Link>
         <h1>{draft.appName || 'New app'}</h1>
@@ -486,7 +495,7 @@ export const Wizard = () => {
           {step === 'review' && (
             <div className="stack">
               {app.ready && config ? (
-                <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} />
+                !app.takenDown && <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} />
               ) : (
                 <div className="check check-bad" role="status"><p>Still needed: {missingItems.join(', ') || 'valid values in the highlighted fields'}.</p></div>
               )}

@@ -6,6 +6,8 @@ import { createApp } from './app';
 import { prepareApps } from './apps';
 import { createIconStore } from './apps/icons';
 import { prepareBuilds } from './builds';
+import { prepareReports } from './abuse/reports';
+import { createUnsafeChecker, webRiskLookup } from './abuse/unsafe';
 import { prepareAuth } from './auth';
 import { resendMailer, smtpMailer } from './auth/mailer';
 import { createFetcher } from './url/fetcher';
@@ -88,6 +90,10 @@ const app = createApp({
   },
   auth,
   fetchUrl: createFetcher(),
+  trustProxy: process.env.TRUST_PROXY || undefined,
+  reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
+  // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
+  unsafe: process.env.WEB_RISK_API_KEY ? createUnsafeChecker(redis, webRiskLookup(process.env.WEB_RISK_API_KEY)) : undefined,
   apps: await prepareApps(mongo.db(), storage),
   builds: await prepareBuilds({
     db: mongo.db(),

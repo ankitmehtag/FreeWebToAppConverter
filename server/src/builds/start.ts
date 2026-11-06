@@ -4,8 +4,10 @@ import { ObjectId, type Collection, type Document } from 'mongodb';
 import { z } from 'zod';
 import { toAppConfig } from '@sitetoapk/shared';
 import { createBuild, queueBuild, setStatus } from '@sitetoapk/shared/builds';
+import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } from '../abuse/unsafe';
 import type { Auth } from '../auth';
 import { buildIconKey } from '../apps/icons';
+import type { FetchUrl } from '../url/fetcher';
 import type { Builds } from './index';
 
 const DUPLICATE_KEY = 11000;
@@ -28,6 +30,7 @@ export const buildView = (build: Document) => ({
   sha256: build.sha256,
   expiresAt: build.expiresAt,
   expired: Boolean(build.status === 'success' && (!build.artifactKey || build.expiresAt <= new Date())),
+  removed: Boolean(build.artifactDeletedAt),
   createdAt: build.createdAt,
   updatedAt: build.updatedAt,
 });
@@ -61,7 +64,20 @@ const refuse = (status: number, reason: string, error: string, extra: object = {
   body: { error, reason, ...extra },
 });
 
-export const startBuild = (auth: Auth, apps: Collection, deps: Builds) => async (req: Request, res: Response) => {
+/** Every site the app opens: the start URL, where it redirects to, and each internal host. */
+const sitesOf = async (config: NonNullable<ReturnType<typeof toAppConfig>>, fetchUrl?: FetchUrl) => {
+  let final: string | undefined;
+  try {
+    final = fetchUrl ? (await fetchUrl(config.startUrl)).url : undefined;
+  } catch {
+    // An unreachable site still gets its start URL and hosts checked.
+  }
+  return [config.startUrl, ...(final ? [final] : []), ...config.internalHosts.map(hostUrl)];
+};
+
+type Safety = { fetchUrl?: FetchUrl; unsafe?: UnsafeChecker };
+
+export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUrl, unsafe }: Safety = {}) => async (req: Request, res: Response) => {
   const { idempotencyKey, versionName } = startRequest.parse(req.body);
   const ownerId = res.locals.session.userId as ObjectId;
   const appIdText = String(req.params.id);
@@ -69,12 +85,28 @@ export const startBuild = (auth: Auth, apps: Collection, deps: Builds) => async 
   const appId = new ObjectId(appIdText);
   const { builds, storage, queue, config } = deps;
 
+  // Before the lock, because it reaches the network. A refusal here never creates a build, so it never counts.
+  const owned = unsafe ? await apps.findOne({ _id: appId, ownerId }) : null;
+  const ownedConfig = owned ? toAppConfig(owned.draft) : null;
+  if (unsafe && ownedConfig) {
+    try {
+      if ((await unsafe(await sitesOf(ownedConfig, fetchUrl))) === 'unsafe') {
+        return res.status(409).json({ error: UNSAFE_MESSAGE, reason: 'unsafe_site' });
+      }
+    } catch (error) {
+      if (!(error instanceof UnsafeCheckUnavailable)) throw error;
+      // Fails closed: no build without a safety answer.
+      return res.status(503).json({ error: 'We couldn’t check the site’s safety just now. Try again in a few minutes.', reason: 'safety_check_unavailable' });
+    }
+  }
+
   const outcome = await withUserLock(deps, ownerId, async (): Promise<Outcome> => {
     const repeat = await builds.findOne({ ownerId, idempotencyKey });
     if (repeat) return { kind: 'repeat', build: repeat };
 
     const app = await apps.findOne({ _id: appId, ownerId });
     if (!app) return refuse(404, 'not_found', 'App not found');
+    if (app.takenDown) return refuse(403, 'taken_down', `This app was taken down: ${app.takenDown.reason}`);
     const appConfig = toAppConfig(app.draft);
     if (!app.ready || !appConfig || !app.iconKey) return refuse(409, 'not_ready', 'Finish setting up the app before building it');
 

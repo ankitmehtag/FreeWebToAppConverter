@@ -6,7 +6,8 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "takedown": "tsx scripts/takedown.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1163.0",

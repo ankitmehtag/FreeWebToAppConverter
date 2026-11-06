@@ -159,6 +159,11 @@ export const processBuild = async (
     await move('signing');
     await verify(deps, build, mounts, apk);
 
+    // A takedown during the build must not let it publish an APK.
+    if (build.appId && (await deps.apps?.findOne({ _id: build.appId }))?.takenDown) {
+      throw new BuildFailure('input', 'App taken down');
+    }
+
     await move('uploading');
     const sha256 = createHash('sha256').update(await readFile(apk)).digest('hex');
     const key = artifactKey(build.plan, buildId);

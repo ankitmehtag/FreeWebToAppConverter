@@ -982,3 +982,18 @@ textarea.mono {
     font-size: 0.75rem;
   }
 }
+
+.report {
+  width: 100%;
+  text-align: left;
+}
+
+.report fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.taken-down {
+  margin-bottom: 20px;
+}

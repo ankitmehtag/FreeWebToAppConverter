@@ -182,3 +182,14 @@ describe('AC9: server-side field checks', () => {
     expect((await (await user.get(`/apps/${app.id}`)).json()).draft.appName).toBe(name);
   });
 });
+
+describe('any website can become an app', () => {
+  it('saves a well-known site with its own name and suggested package name', async () => {
+    // The owner removed the brand denylist on 2026-11-07, so anyone may wrap any site.
+    const user = await signedIn(h, email());
+    const draft = { startUrl: 'https://www.google.com/', appName: 'Google', packageName: 'com.google.app', internalHosts: ['google.com'] };
+    const { status, body } = await create(user, draft);
+    expect(status).toBe(201);
+    expect(body.draft).toMatchObject(draft);
+  });
+});
