@@ -32,5 +32,5 @@
   - Tests first: AC2; proof AC1 in a real browser
 - [x] T6: Wizard, URL check, autosave, preview and Review (R9, R10, R12, R13, R18, R19)
   - Tests first: AC8, AC10, AC15 (component tests), then proof in a real browser
-- [ ] T7: Permission proof on a built APK (R18)
+- [x] T7: Permission proof on a built APK (R18)
   - Proof: AC14

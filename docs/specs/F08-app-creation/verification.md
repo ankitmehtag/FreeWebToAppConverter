@@ -2,7 +2,7 @@
 
 Run on 2026-11-06. Automated tests used Mongo, Redis and SeaweedFS from Compose. Browser rows ran in headless Chromium (Playwright) against the Compose API and the Vite dev server, with mail sent to Mailpit.
 
-Status: in progress. AC14 is still to run, and the owner has not signed off.
+Status: all criteria pass. Waiting for the owner's sign-off.
 
 | Criterion | Command or action | Real output | Result |
 |---|---|---|---|
@@ -19,7 +19,7 @@ Status: in progress. AC14 is still to run, and the owner has not signed off.
 | AC11 | `npm test -w server` (prefill) | Manifest site offers `Shop`, `#00FF66` and the 512 icon in exactly 3 fetches; 32×32 favicon offers no icon; a lying size offers no icon; manifest on `10.0.0.5` and icon on `169.254.169.254` are never fetched | pass |
 | AC12 | `npm test -w shared`; `npm test -w server` (icons) | Renamed JPEG "not a PNG", 256×256 "at least 512", non-square "square", 6 MB file 413 "5 MB"; a valid icon is stored re-encoded without its trailing data | pass |
 | AC13 | `npm test -w server` (icons) | Owner gets the icon with `Cache-Control: private, no-store`; another user 404; signed out 401; the bucket object without credentials 403 | pass |
-| AC14 | Build a finished app with `build-app`, then `aapt2 dump permissions` | Not run yet: needs the signing settings | pending |
+| AC14 | Rendered the browser proof's "Proof Shop" record with `toAppConfig`, built it with `build-app` on R2 and the test key, then ran `aapt2 dump permissions` and `apksigner` | Review showed `INTERNET`; the APK `com.example.app`, label `Proof Shop`, uses `android.permission.INTERNET` plus its own `com.example.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, and nothing else; SHA-256 `26810adb…1fae53` matches the record; signer `c546406a…a024e8` | pass |
 | AC15 | `npm test -w client`; browser with `https://example.com` and `https://github.com` | example.com shown live in a sandboxed iframe; github.com shows the blocked notice and no iframe | pass |
 
 Automated totals: `shared` 69 of 69, `server` 193 of 193, `client` 19 of 19, typecheck 0 errors, client build passes. At phone width (390 px) the wizard has no horizontal scroll.
