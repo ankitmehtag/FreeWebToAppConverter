@@ -2,7 +2,7 @@
 
 Run on 2026-11-06. Automated tests used Mongo, Redis and SeaweedFS from Compose. Browser rows ran in headless Chromium (Playwright) against the Compose API and the Vite dev server, with mail sent to Mailpit.
 
-Status: all criteria pass. Waiting for the owner's sign-off.
+Status: all criteria pass, signed off by the owner on 2026-11-06.
 
 | Criterion | Command or action | Real output | Result |
 |---|---|---|---|
