@@ -1,0 +1,168 @@
+import cookieParser from 'cookie-parser';
+import express, { Router, type ErrorRequestHandler, type Response } from 'express';
+import { ObjectId, type Document } from 'mongodb';
+import { z } from 'zod';
+import { draftSchema, toAppConfig, type Draft } from '@sitetoapk/shared';
+import { checkIcon, IconError, MAX_ICON_BYTES } from '@sitetoapk/shared/icon';
+import type { Auth } from '../auth';
+import { limitRoute } from '../auth/limits';
+import { allowOrigin, invalid } from '../auth/routes';
+import { requireCsrf, requireSession } from '../auth/session';
+import type { FetchUrl } from '../url/fetcher';
+import { iconKey } from './icons';
+import { MAX_APPS_PER_USER, type Apps } from './index';
+import { prefill } from './prefill';
+
+const DUPLICATE_KEY = 11000;
+
+const prefillRequest = z.strictObject({ url: z.string().min(1).max(2048) });
+
+const isReady = (draft: Draft, iconKey: unknown) => Boolean(iconKey) && toAppConfig(draft) !== null;
+
+const view = (app: Document) => ({
+  id: String(app._id),
+  draft: app.draft,
+  ready: app.ready,
+  locked: Boolean(app.lockedAt),
+  hasIcon: Boolean(app.iconKey),
+  createdAt: app.createdAt,
+  updatedAt: app.updatedAt,
+});
+
+const ownerOf = (res: Response) => res.locals.session.userId as ObjectId;
+
+/** Another user's app and a missing one look the same, so ids can't be probed. */
+const appFilter = (res: Response, id: unknown) =>
+  typeof id === 'string' && /^[0-9a-f]{24}$/.test(id) ? { _id: new ObjectId(id), ownerId: ownerOf(res) } : null;
+
+const notFound = (res: Response) => res.status(404).json({ error: 'App not found' });
+
+const duplicateName = (res: Response) =>
+  res.status(409).json({ error: 'Invalid request', fields: { packageName: 'You already have an app with this package name' } });
+
+const isDuplicate = (error: unknown) => (error as { code?: number }).code === DUPLICATE_KEY;
+
+/** Answers with an error per field, so that the wizard can show each one next to its input. */
+const fieldErrors: ErrorRequestHandler = (error, _req, res, next) => {
+  if (error instanceof IconError) return res.status(400).json({ error: 'Invalid request', fields: { icon: error.message } });
+  if ((error as { type?: string }).type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Invalid request', fields: { icon: 'Icon must be 5 MB or smaller' } });
+  }
+  if (!(error instanceof z.ZodError)) return next(error);
+  const fields = Object.fromEntries(error.issues.map((issue) => [issue.path.join('.') || '_', issue.message]));
+  res.status(400).json({ error: 'Invalid request', fields });
+};
+
+export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUrl) => {
+  const router = Router();
+  const session = requireSession(auth);
+  const csrf = requireCsrf(auth);
+
+  router.use(allowOrigin(auth), cookieParser(), express.json({ limit: '10kb' }), session);
+
+  router.get('/', async (_req, res) => {
+    const list = await apps.find({ ownerId: ownerOf(res) }).sort({ updatedAt: -1 }).toArray();
+    res.json(list.map(view));
+  });
+
+  router.post('/', csrf, async (req, res) => {
+    const draft = draftSchema.parse(req.body);
+    const ownerId = ownerOf(res);
+    if ((await apps.countDocuments({ ownerId })) >= MAX_APPS_PER_USER) {
+      res.status(409).json({ error: `You can have up to ${MAX_APPS_PER_USER} apps` });
+      return;
+    }
+    const now = new Date();
+    const app = { ownerId, draft, ready: false, buildCount: 0, createdAt: now, updatedAt: now };
+    try {
+      const { insertedId } = await apps.insertOne(app);
+      res.status(201).json(view({ ...app, _id: insertedId }));
+    } catch (error) {
+      if (!isDuplicate(error)) throw error;
+      duplicateName(res);
+    }
+  });
+
+  if (fetchUrl) {
+    router.post('/prefill', csrf, limitRoute(auth, 'prefill'), async (req, res) => {
+      const { url } = prefillRequest.parse(req.body);
+      res.json(await prefill(fetchUrl, url));
+    });
+  }
+
+  router.get('/:id', async (req, res) => {
+    const filter = appFilter(res, req.params.id);
+    const app = filter && (await apps.findOne(filter));
+    if (!app) return notFound(res);
+    res.json(view(app));
+  });
+
+  router.put('/:id', csrf, async (req, res) => {
+    const filter = appFilter(res, req.params.id);
+    if (!filter) return notFound(res);
+    const draft = draftSchema.parse(req.body);
+
+    const current = await apps.findOne(filter);
+    if (!current) return notFound(res);
+
+    // The lock is part of the filter, so that a build finishing mid-save can't be raced.
+    const unlockedOrSameName = [{ lockedAt: null }, ...(draft.packageName ? [{ 'draft.packageName': draft.packageName }] : [])];
+    try {
+      const updated = await apps.findOneAndUpdate(
+        { ...filter, $or: unlockedOrSameName },
+        { $set: { draft, ready: isReady(draft, current.iconKey), updatedAt: new Date() } },
+        { returnDocument: 'after' },
+      );
+      if (updated) return res.json(view(updated));
+    } catch (error) {
+      if (!isDuplicate(error)) throw error;
+      return duplicateName(res);
+    }
+    if (await apps.findOne(filter)) {
+      res.status(409).json({ error: 'Invalid request', fields: { packageName: 'The package name can’t change after the first build' } });
+    } else {
+      notFound(res);
+    }
+  });
+
+  router.delete('/:id', csrf, async (req, res) => {
+    const filter = appFilter(res, req.params.id);
+    if (!filter) return notFound(res);
+    const deleted = await apps.findOneAndDelete({ ...filter, buildCount: 0 });
+    if (deleted) {
+      if (deleted.iconKey) await icons.remove(deleted.iconKey);
+      return res.status(204).end();
+    }
+    if (await apps.findOne(filter)) res.status(409).json({ error: 'An app that has been built can’t be deleted' });
+    else notFound(res);
+  });
+
+  // Any content type is read, so that the file's own bytes decide whether it is a PNG.
+  router.post('/:id/icon', csrf, express.raw({ type: () => true, limit: MAX_ICON_BYTES }), async (req, res) => {
+    const filter = appFilter(res, req.params.id);
+    const app = filter && (await apps.findOne(filter));
+    if (!filter || !app) return notFound(res);
+
+    const icon = await checkIcon(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+    const key = iconKey(String(app._id));
+    await icons.put(key, icon.data);
+    const updated = await apps.findOneAndUpdate(
+      filter,
+      { $set: { iconKey: key, ready: isReady(app.draft, key), updatedAt: new Date() } },
+      { returnDocument: 'after' },
+    );
+    if (!updated) return notFound(res);
+    res.json(view(updated));
+  });
+
+  router.get('/:id/icon', async (req, res) => {
+    const filter = appFilter(res, req.params.id);
+    const app = filter && (await apps.findOne(filter));
+    const data = app?.iconKey ? await icons.get(app.iconKey) : null;
+    if (!data) return notFound(res);
+    res.set('Cache-Control', 'private, no-store').type('image/png').send(data);
+  });
+
+  router.use(fieldErrors, invalid);
+  return router;
+};

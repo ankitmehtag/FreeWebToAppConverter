@@ -9,3 +9,4 @@ node_modules/
 build/
 local.properties
 .kotlin/
+dist/

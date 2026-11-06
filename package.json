@@ -8,7 +8,8 @@
   "workspaces": [
     "shared",
     "server",
-    "worker"
+    "worker",
+    "client"
   ],
   "scripts": {
     "test": "npm test --workspaces",

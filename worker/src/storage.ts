@@ -6,36 +6,23 @@ import {
   HeadObjectCommand,
   PutBucketLifecycleConfigurationCommand,
   PutObjectCommand,
-  S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { s3Client, type StorageOptions } from '@sitetoapk/shared/s3';
 
 export const LINK_LIFETIME_SECONDS = 60 * 60;
 export const FREE_RETENTION_DAYS = 7;
 const FREE_PREFIX = 'free/';
 
-export type StorageOptions = {
-  endpoint: string;
-  bucket: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  pathStyle?: boolean;
-};
+export type { StorageOptions };
 
 export type Storage = ReturnType<typeof createStorage>;
 
 export const artifactKey = (plan: 'free' | 'premium', buildId: string) => `${plan}/${buildId}.apk`;
 
-export const createStorage = ({ endpoint, bucket, accessKeyId, secretAccessKey, pathStyle = false }: StorageOptions) => {
-  const client = new S3Client({
-    endpoint,
-    region: 'auto',
-    forcePathStyle: pathStyle,
-    credentials: { accessKeyId, secretAccessKey },
-    // R2 rejects the checksum headers this client now sends by default.
-    requestChecksumCalculation: 'WHEN_REQUIRED',
-    responseChecksumValidation: 'WHEN_REQUIRED',
-  });
+export const createStorage = (options: StorageOptions) => {
+  const { bucket } = options;
+  const client = s3Client(options);
 
   return {
     /** Uploads a file and returns the size the bucket reports, confirming it arrived. */

@@ -1,14 +1,40 @@
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { CreateBucketCommand } from '@aws-sdk/client-s3';
 import { Redis } from 'ioredis';
 import { MongoClient } from 'mongodb';
 import { createApp } from '../src/app';
+import { prepareApps } from '../src/apps';
+import { createIconStore } from '../src/apps/icons';
+import { s3Client } from '@sitetoapk/shared/s3';
 import type { AuthConfig, Mail } from '../src/auth/types';
 import { prepareAuth } from '../src/auth';
 import type { FetchUrl } from '../src/url/fetcher';
 
 export const APP_URL = 'http://app.test';
+
+// The local S3 from Compose stands in for R2. Its credentials are local only.
+export const localS3 = {
+  endpoint: 'http://127.0.0.1:9000',
+  accessKeyId: 'sitetoapk-local',
+  secretAccessKey: 'sitetoapk-local-only',
+  pathStyle: true,
+};
+
+// One bucket for every run: each bucket takes its own volumes, and the local S3 runs out of them.
+// Icon keys hold the app id, so runs never collide.
+const ICON_BUCKET = 'test-icons';
+
+const testIconStore = async () => {
+  const bucket = ICON_BUCKET;
+  try {
+    await s3Client({ ...localS3, bucket }).send(new CreateBucketCommand({ Bucket: bucket }));
+  } catch (error) {
+    if ((error as Error).name !== 'BucketAlreadyOwnedByYou' && (error as Error).name !== 'BucketAlreadyExists') throw error;
+  }
+  return { bucket, icons: createIconStore({ ...localS3, bucket }) };
+};
 
 export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: FetchUrl) => {
   const mongo = await new MongoClient('mongodb://127.0.0.1:27017').connect();
@@ -36,7 +62,9 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: F
       ...config,
     },
   });
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl }).listen(0);
+  const { bucket, icons } = await testIconStore();
+  const apps = await prepareApps(db, icons);
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
@@ -70,6 +98,11 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: F
           headers: { 'content-type': 'application/json', ...options.headers },
           body: JSON.stringify(body ?? {}),
         }),
+      put: (path: string, body?: unknown, options: { csrf?: string | null } = {}) =>
+        send(path, { method: 'PUT', ...options, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) }),
+      delete: (path: string, options: { csrf?: string | null } = {}) => send(path, { method: 'DELETE', ...options }),
+      upload: (path: string, body: Buffer, type = 'image/png', options: { csrf?: string | null } = {}) =>
+        send(path, { method: 'POST', ...options, headers: { 'content-type': type }, body: new Uint8Array(body) }),
     };
   };
 
@@ -86,6 +119,9 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: F
   return {
     url, client, sent, mailTo, tokenIn, db, redis,
     users: db.collection('users'),
+    apps: apps.apps,
+    icons,
+    bucket,
     sessions: db.collection('sessions'),
     emailTokens: db.collection('emailTokens'),
     close: async () => {

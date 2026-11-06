@@ -30,7 +30,7 @@ export const allowOrigin = ({ config }: Auth) => (req: Request, res: Response, n
   res.set('Access-Control-Allow-Origin', config.appUrl);
   res.set('Access-Control-Allow-Credentials', 'true');
   res.set('Access-Control-Allow-Headers', 'content-type, x-csrf-token');
-  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
   res.vary('Origin');
   if (req.method === 'OPTIONS') res.status(204).end();
   else next();

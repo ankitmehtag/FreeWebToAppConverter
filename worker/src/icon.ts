@@ -1,42 +1,20 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
+import { checkIcon, IconError, MAX_ICON_BYTES, type Icon } from '@sitetoapk/shared/icon';
 
-export const MAX_ICON_BYTES = 5 * 1024 * 1024;
-const MIN_SIDE = 512;
-const MAX_SIDE = 4096;
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+export { MAX_ICON_BYTES, type Icon } from '@sitetoapk/shared/icon';
 
 const LAUNCHER_DP = 48;
 const LAYER_DP = 108;
 const SAFE_ZONE_DP = 66;
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 
-export type Icon = { data: Buffer; opaque: boolean };
-
-/** Validates an uploaded icon and returns it re-encoded, without metadata or trailing data. */
+/** Validates an uploaded icon file and returns it re-encoded, without metadata or trailing data. */
 export const readIcon = async (path: string): Promise<Icon> => {
-  if ((await stat(path)).size > MAX_ICON_BYTES) throw new Error('Icon must be 5 MB or smaller');
-
-  const file = await readFile(path);
-  if (!file.subarray(0, 8).equals(PNG_SIGNATURE) || file.toString('latin1', 12, 16) !== 'IHDR') {
-    throw new Error('Icon is not a PNG');
-  }
-
-  // Read from the header, so that a bomb is rejected without being decoded.
-  const width = file.readUInt32BE(16);
-  const height = file.readUInt32BE(20);
-  if (width !== height) throw new Error('Icon must be square');
-  if (width < MIN_SIDE) throw new Error(`Icon must be at least ${MIN_SIDE}×${MIN_SIDE}`);
-  if (width > MAX_SIDE) throw new Error(`Icon must be at most ${MAX_SIDE}×${MAX_SIDE}`);
-
-  try {
-    const image = sharp(file, { failOn: 'error', limitInputPixels: MAX_SIDE * MAX_SIDE });
-    const data = await image.png().toBuffer();
-    return { data, opaque: (await sharp(data).stats()).isOpaque };
-  } catch {
-    throw new Error('Icon could not be read');
-  }
+  // Checked before reading, so that a huge file is never loaded.
+  if ((await stat(path)).size > MAX_ICON_BYTES) throw new IconError('Icon must be 5 MB or smaller');
+  return checkIcon(await readFile(path));
 };
 
 // The safe zone is a circle, so a square logo must fit inside it with its corners.

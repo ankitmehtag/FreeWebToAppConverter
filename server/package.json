@@ -9,6 +9,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1163.0",
+    "@sitetoapk/shared": "*",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "express": "^5.3.0",
@@ -26,6 +28,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.5",
     "@types/nodemailer": "^8.0.2",
+    "sharp": "0.35.5",
     "typescript": "^7.0.2",
     "vitest": "^4.1.12"
   }

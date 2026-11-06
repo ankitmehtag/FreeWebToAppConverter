@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const JAVA_RESERVED_WORDS = new Set([
+export const JAVA_RESERVED_WORDS = new Set([
   'abstract', 'assert', 'boolean', 'break', 'byte', 'case', 'catch', 'char', 'class', 'const',
   'continue', 'default', 'do', 'double', 'else', 'enum', 'extends', 'false', 'final', 'finally',
   'float', 'for', 'goto', 'if', 'implements', 'import', 'instanceof', 'int', 'interface', 'long',

@@ -1,5 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
+import type { Apps } from './apps';
+import { appsRouter } from './apps/routes';
 import type { Auth } from './auth';
 import { authRouter } from './auth/routes';
 import type { FetchUrl } from './url/fetcher';
@@ -13,6 +15,7 @@ type AppOptions = {
   checkTimeoutMs?: number;
   auth?: Auth;
   fetchUrl?: FetchUrl;
+  apps?: Apps;
 };
 
 const probe = async (check: Check, timeoutMs: number) => {
@@ -30,13 +33,14 @@ const probe = async (check: Check, timeoutMs: number) => {
   }
 };
 
-export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl }: AppOptions) => {
+export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps }: AppOptions) => {
   const app = express();
   app.disable('x-powered-by');
   app.use(helmet());
 
   if (auth) app.use('/auth', authRouter(auth));
   if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl));
+  if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl));
 
   app.get('/health', async (_req, res) => {
     const [mongo, redis] = await Promise.all([
