@@ -1,0 +1,15 @@
+User-agent: *
+Disallow: /my-apps
+Disallow: /install
+Disallow: /apps
+Disallow: /builds
+Disallow: /auth
+Disallow: /url
+Disallow: /reports
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+
+Sitemap: https://freewebsitetoappconverter.com/sitemap.xml

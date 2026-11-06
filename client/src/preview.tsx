@@ -5,6 +5,8 @@ type PreviewProps = {
   startUrl?: string;
   /** From the URL check: true, false, or undefined before the site has been checked. */
   embeddable?: boolean;
+  /** What the screen says before there is a site to show. */
+  emptyText?: string;
 };
 
 /** A dark or light status bar text colour, so the clock stays readable on the chosen colour. */
@@ -13,9 +15,9 @@ const textOn = (hex: string) => {
   return 0.2126 * r! + 0.7152 * g! + 0.0722 * b! > 0.6 ? '#10302e' : '#ffffff';
 };
 
-const Screen = ({ startUrl, embeddable, appName, iconUrl }: PreviewProps) => {
+const Screen = ({ startUrl, embeddable, appName, iconUrl, emptyText }: PreviewProps) => {
   if (!startUrl || embeddable === undefined) {
-    return <div className="phone-note">Check your website on the first step to see it here.</div>;
+    return <div className="phone-note">{emptyText ?? 'Check your website on the first step to see it here.'}</div>;
   }
   if (embeddable) {
     return (

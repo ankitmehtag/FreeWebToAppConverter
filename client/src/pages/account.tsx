@@ -85,6 +85,10 @@ export const SignUp = () => {
           onChange={(e) => setPassword(e.target.value)}
         />
         {error && <p className="form-error" role="alert">{error}</p>}
+        <p className="field-hint consent">
+          By creating an account, you accept the <Link to="/terms">Terms of Service</Link>. Read how we handle your data in the{' '}
+          <Link to="/privacy">Privacy Policy</Link>.
+        </p>
         <button className="button" disabled={busy}>Create account</button>
       </form>
       <div className="divider">or</div>

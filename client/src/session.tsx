@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { api, ApiError } from './api';
+import { api, ApiError, mayBeSignedIn } from './api';
 
 export type Me = { email: string; emailVerified: boolean };
 
@@ -17,6 +17,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
 
   const reload = useCallback(async () => {
+    // A visitor who never signed in costs no request, and their console stays free of 401s.
+    if (!mayBeSignedIn()) {
+      setMe(null);
+      return;
+    }
     try {
       setMe(await api<Me>('/auth/me'));
     } catch (error) {

@@ -20,6 +20,7 @@ beforeEach(() => {
   stored = { draft: {}, hasIcon: false, locked: false };
   urlCheck = { reachable: true, https: true, mobileReady: true, embeddable: true };
   sessionStorage.clear();
+  document.cookie = 'csrf_token=test; path=/';
   vi.stubGlobal('fetch', async (path: string, init: RequestInit = {}) => {
     const method = init.method ?? 'GET';
     const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;

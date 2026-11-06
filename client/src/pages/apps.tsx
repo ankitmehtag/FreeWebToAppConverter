@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { Draft } from '@sitetoapk/shared';
 import { api, ApiError } from '../api';
+import { pendingSite } from '../url-check';
 import { statusLabel, type BuildView } from './build';
 
 export type AppView = {
@@ -30,8 +31,17 @@ export const AppsList = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // A site checked on Home before signing in becomes this visitor's next app.
+    const site = pendingSite.get();
+    if (site) {
+      pendingSite.clear();
+      api<AppView>('/apps', { method: 'POST', body: {} }).then(
+        (app) => navigate(`/my-apps/${app.id}/basics?site=${encodeURIComponent(site)}`, { replace: true }),
+        () => setError('Couldn’t start an app for your site. Use New app to try again.'),
+      );
+    }
     api<AppView[]>('/apps').then(setApps, () => setError('Couldn’t load your apps. Refresh to try again.'));
-  }, []);
+  }, [navigate]);
 
   const create = async () => {
     setError('');

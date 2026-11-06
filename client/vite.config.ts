@@ -8,5 +8,7 @@ const proxy = Object.fromEntries(['/auth', '/apps', '/url', '/builds', '/reports
 export default defineConfig({
   plugins: [react()],
   server: { port: 5173, strictPort: true, proxy },
+  // The built site, served the way production will: prerendered pages, the API behind the same origin.
+  preview: { port: 5173, strictPort: true, proxy },
   test: { environment: 'jsdom', setupFiles: ['test/setup.ts'] },
 });

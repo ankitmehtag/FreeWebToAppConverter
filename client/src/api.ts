@@ -16,6 +16,9 @@ type Options = { method?: string; body?: unknown; raw?: Blob };
 
 const csrfToken = () => /(?:^|;\s*)csrf_token=([^;]*)/.exec(document.cookie)?.[1];
 
+/** Whether this browser may hold a session. Without the CSRF cookie there is none, so there is nothing to ask. */
+export const mayBeSignedIn = () => Boolean(csrfToken());
+
 // Refreshing again from these would loop, or hide a wrong password behind a refresh.
 const NO_RETRY = new Set(['/auth/refresh', '/auth/login', '/auth/register']);
 

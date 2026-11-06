@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { DEFAULT_BEHAVIOUR, draftSchema, permissionsFor, suggestPackageName, toAppConfig, type Draft } from '@sitetoapk/shared';
 import { api, ApiError, type FieldErrors } from '../api';
 import { BuildPanel } from '../build-panel';
 import { PhonePreview } from '../preview';
+import { failureText, normaliseUrl, passes, type UrlCheck } from '../url-check';
 import { useSession } from '../session';
 import type { AppView } from './apps';
-
-type UrlCheck =
-  | { reachable: true; https: boolean; mobileReady: boolean | 'unknown'; embeddable: boolean }
-  | { reachable: false; failure: string };
 
 type Prefill = { reachable: true; appName?: string; statusBarColor?: string; icon?: string } | { reachable: false };
 
@@ -29,15 +26,6 @@ const MESSAGES: Record<string, string> = {
   packageName: 'Use lowercase words joined by dots, like com.example.app. Each word starts with a letter and can’t be a Java keyword.',
   'ui.statusBarColor': 'Pick a colour, or type it as #RRGGBB.',
   internalHosts: 'List each host on its own line, like shop.example.com.',
-};
-
-const FAILURES: Record<string, string> = {
-  invalid_url: 'That isn’t a web address we can open. Check it and try again.',
-  blocked: 'That address points to a private network, so it can’t become an app.',
-  unreachable: 'We couldn’t reach that site. Check the address, or try again once the site is up.',
-  timeout: 'The site took longer than 10 seconds to answer. Try again in a moment.',
-  too_large: 'The page is larger than 2 MB, so we couldn’t check it.',
-  unsafe: 'This site is on a list of unsafe sites, such as malware or phishing, so it can’t become an app.',
 };
 
 /** Checks the draft with the same rules as the server, and words each problem for people. */
@@ -61,12 +49,6 @@ const hostOf = (url: string) => {
   }
 };
 
-const normaliseUrl = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  return /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
-};
-
 // The check result is kept per tab, so a refresh shows the preview again without spending a check.
 const cachedCheck = (url: string): UrlCheck | undefined => {
   try {
@@ -84,8 +66,6 @@ const cacheCheck = (url: string, check: UrlCheck) => {
     // Without storage the site is just checked again next time.
   }
 };
-
-const passes = (check?: UrlCheck) => Boolean(check?.reachable && check.https);
 
 const Field = ({ label, hint, error, children }: { label: string; hint?: ReactNode; error?: string; children: ReactNode }) => (
   <div className="field">
@@ -223,6 +203,19 @@ export const Wizard = () => {
   };
 
   // After a refresh the URL is checked again once, so the preview knows whether it can embed the site.
+  // A site carried from Home is filled in and checked once, like a typed one.
+  const [params] = useSearchParams();
+  const carried = useRef(false);
+  useEffect(() => {
+    const site = params.get('site');
+    if (!app || carried.current || !site || app.draft.startUrl) return;
+    carried.current = true;
+    setUrlInput(site);
+    void runCheck(site);
+    // runCheck changes on every render; this runs once per app.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app, params]);
+
   const rechecked = useRef(false);
   useEffect(() => {
     if (!app || rechecked.current || !app.draft.startUrl || cachedCheck(app.draft.startUrl)) return;
@@ -359,7 +352,7 @@ export const Wizard = () => {
                       <li>{check.embeddable ? 'Can be previewed here' : 'Can’t be previewed here, but the app is unaffected'}</li>
                     </ul>
                   ) : (
-                    <p>{check.failure === 'rate' ? 'Too many checks in a short time. Wait a few minutes and try again.' : FAILURES[check.failure] ?? FAILURES.unreachable}</p>
+                    <p>{failureText(check.failure)}</p>
                   )}
                 </div>
               )}

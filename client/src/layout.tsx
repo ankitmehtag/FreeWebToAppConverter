@@ -23,33 +23,61 @@ const VerifyBanner = () => {
   );
 };
 
+const PUBLIC_LINKS = [
+  { to: '/pricing', label: 'Pricing' },
+  { to: '/faq', label: 'Questions' },
+  { to: '/about', label: 'About' },
+  { to: '/contact', label: 'Contact' },
+  { to: '/terms', label: 'Terms' },
+  { to: '/privacy', label: 'Privacy' },
+  { to: '/acceptable-use', label: 'Acceptable use' },
+];
+
 export const Layout = () => {
   const { me, signOut } = useSession();
   const navigate = useNavigate();
   return (
     <>
       <header className="topbar">
-        <Link to={me ? '/my-apps' : '/'} className="wordmark">
+        <Link to="/" className="wordmark" aria-label="Free Website to App Converter, home">
           website<span>→</span>app
         </Link>
-        {me && (
-          <nav className="topbar-nav">
-            <span className="topbar-email">{me.email}</span>
-            <button
-              type="button"
-              className="button button-quiet button-small"
-              onClick={async () => {
-                await signOut();
-                navigate('/sign-in');
-              }}
-            >
-              Sign out
-            </button>
-          </nav>
-        )}
+        <nav className="topbar-nav" aria-label="Main">
+          <Link to="/pricing" className="topbar-link">Pricing</Link>
+          <Link to="/faq" className="topbar-link">Questions</Link>
+          {me ? (
+            <>
+              <Link to="/my-apps" className="topbar-link">Your apps</Link>
+              <span className="topbar-email">{me.email}</span>
+              <button
+                type="button"
+                className="button button-quiet button-small"
+                onClick={async () => {
+                  await signOut();
+                  navigate('/sign-in');
+                }}
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/sign-in" className="topbar-link">Sign in</Link>
+              <Link to="/sign-up" className="button button-small">Get started</Link>
+            </>
+          )}
+        </nav>
       </header>
       {me && !me.emailVerified && <VerifyBanner />}
       <Outlet />
+      <footer className="footer">
+        <nav aria-label="Site">
+          {PUBLIC_LINKS.map((link) => (
+            <Link key={link.to} to={link.to}>{link.label}</Link>
+          ))}
+        </nav>
+        <p>Free Website to App Converter · Gurugram, India</p>
+      </footer>
     </>
   );
 };

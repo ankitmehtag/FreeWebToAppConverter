@@ -10,3 +10,4 @@ build/
 local.properties
 .kotlin/
 dist/
+dist-server/
