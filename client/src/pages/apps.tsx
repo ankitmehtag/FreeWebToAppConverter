@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { Draft } from '@sitetoapk/shared';
 import { api, ApiError } from '../api';
+import { statusLabel, type BuildView } from './build';
 
 export type AppView = {
   id: string;
@@ -9,6 +10,7 @@ export type AppView = {
   ready: boolean;
   locked: boolean;
   hasIcon: boolean;
+  latestBuild?: BuildView;
   createdAt: string;
   updatedAt: string;
 };
@@ -68,7 +70,9 @@ export const AppsList = () => {
                   <span className="app-row-name">{app.draft.appName || 'Untitled app'}</span>
                   <span className="mono app-row-host">{hostOf(app.draft.startUrl) || 'No website yet'}</span>
                 </span>
-                <span className={`tag ${app.ready ? 'tag-ready' : ''}`}>{app.ready ? 'Ready to build' : 'Draft'}</span>
+                <span className={`tag ${app.latestBuild?.status === 'success' && !app.latestBuild.expired ? 'tag-ready' : app.latestBuild?.status === 'failed' ? 'tag-failed' : ''}`}>
+                  {app.latestBuild ? `v${app.latestBuild.versionName} · ${statusLabel(app.latestBuild)}` : app.ready ? 'Ready to build' : 'Draft'}
+                </span>
               </Link>
             </li>
           ))}

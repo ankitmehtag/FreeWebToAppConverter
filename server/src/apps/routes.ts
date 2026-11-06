@@ -12,6 +12,8 @@ import type { FetchUrl } from '../url/fetcher';
 import { iconKey } from './icons';
 import { MAX_APPS_PER_USER, type Apps } from './index';
 import { prefill } from './prefill';
+import type { Builds } from '../builds';
+import { buildView, startBuild } from '../builds/start';
 
 const DUPLICATE_KEY = 11000;
 
@@ -19,8 +21,9 @@ const prefillRequest = z.strictObject({ url: z.string().min(1).max(2048) });
 
 const isReady = (draft: Draft, iconKey: unknown) => Boolean(iconKey) && toAppConfig(draft) !== null;
 
-const view = (app: Document) => ({
+const view = (app: Document, latestBuild?: Document) => ({
   id: String(app._id),
+  latestBuild: latestBuild ? buildView(latestBuild) : undefined,
   draft: app.draft,
   ready: app.ready,
   locked: Boolean(app.lockedAt),
@@ -53,16 +56,30 @@ const fieldErrors: ErrorRequestHandler = (error, _req, res, next) => {
   res.status(400).json({ error: 'Invalid request', fields });
 };
 
-export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUrl) => {
+export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUrl, builds?: Builds) => {
   const router = Router();
   const session = requireSession(auth);
   const csrf = requireCsrf(auth);
 
   router.use(allowOrigin(auth), cookieParser(), express.json({ limit: '10kb' }), session);
 
+  /** The newest build of each app, found in one query. */
+  const latestBuilds = async (ownerId: ObjectId, appIds: ObjectId[]) => {
+    if (!builds || appIds.length === 0) return new Map<string, Document>();
+    const rows = await builds.builds
+      .aggregate([
+        { $match: { ownerId, appId: { $in: appIds } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: '$appId', build: { $first: '$$ROOT' } } },
+      ])
+      .toArray();
+    return new Map(rows.map((row) => [String(row._id), row.build as Document]));
+  };
+
   router.get('/', async (_req, res) => {
     const list = await apps.find({ ownerId: ownerOf(res) }).sort({ updatedAt: -1 }).toArray();
-    res.json(list.map(view));
+    const latest = await latestBuilds(ownerOf(res), list.map((app) => app._id));
+    res.json(list.map((app) => view(app, latest.get(String(app._id)))));
   });
 
   router.post('/', csrf, async (req, res) => {
@@ -90,11 +107,22 @@ export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUr
     });
   }
 
+  if (builds) router.post('/:id/builds', csrf, limitRoute(auth, 'build-start'), startBuild(auth, apps, builds));
+
   router.get('/:id', async (req, res) => {
     const filter = appFilter(res, req.params.id);
     const app = filter && (await apps.findOne(filter));
     if (!app) return notFound(res);
-    res.json(view(app));
+    const latest = await latestBuilds(ownerOf(res), [app._id]);
+    res.json(view(app, latest.get(String(app._id))));
+  });
+
+  router.get('/:id/builds', async (req, res) => {
+    const filter = appFilter(res, req.params.id);
+    const app = filter && (await apps.findOne(filter));
+    if (!app || !builds) return notFound(res);
+    const list = await builds.builds.find({ appId: app._id, ownerId: ownerOf(res) }).sort({ createdAt: -1 }).limit(10).toArray();
+    res.json(list.map(buildView));
   });
 
   router.put('/:id', csrf, async (req, res) => {

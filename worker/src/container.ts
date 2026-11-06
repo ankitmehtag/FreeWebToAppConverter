@@ -47,19 +47,35 @@ export const removeContainer = async (name: string) => {
 };
 
 /** Runs one container with a fixed argv and no shell, killing it at the timeout. */
-export const runContainer = (options: ContainerOptions & { timeoutMs: number }) =>
+export const runContainer = (options: ContainerOptions & { timeoutMs: number; onLine?: (line: string) => void }) =>
   new Promise<{ code: number | null; timedOut: boolean; log: string }>((resolve, reject) => {
     const name = containerName(options.buildId);
     const child = spawn('docker', containerArgs(options), { stdio: ['ignore', 'pipe', 'pipe'] });
     const lines: string[] = [];
     let timedOut = false;
 
-    const collect = (chunk: Buffer) => {
-      lines.push(...chunk.toString().split('\n').filter(Boolean));
-      lines.splice(0, Math.max(0, lines.length - LOG_LINES));
+    // Each stream keeps its unfinished last line until the rest arrives.
+    const reader = () => {
+      let partial = '';
+      const keep = (line: string) => {
+        if (!line) return;
+        lines.push(line);
+        lines.splice(0, Math.max(0, lines.length - LOG_LINES));
+        options.onLine?.(line);
+      };
+      return {
+        data: (chunk: Buffer) => {
+          const parts = (partial + chunk.toString()).split('\n');
+          partial = parts.pop() ?? '';
+          parts.forEach(keep);
+        },
+        end: () => keep(partial),
+      };
     };
-    child.stdout.on('data', collect);
-    child.stderr.on('data', collect);
+    const out = reader();
+    const err = reader();
+    child.stdout.on('data', out.data);
+    child.stderr.on('data', err.data);
 
     const timer = setTimeout(() => {
       timedOut = true;
@@ -72,6 +88,8 @@ export const runContainer = (options: ContainerOptions & { timeoutMs: number }) 
     });
     child.on('close', async (code) => {
       clearTimeout(timer);
+      out.end();
+      err.end();
       await removeContainer(name);
       resolve({ code, timedOut, log: lines.join('\n') });
     });

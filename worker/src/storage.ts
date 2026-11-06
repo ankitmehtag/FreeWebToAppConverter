@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import {
   DeleteObjectCommand,
   GetBucketLifecycleConfigurationCommand,
@@ -38,6 +38,13 @@ export const createStorage = (options: StorageOptions) => {
       );
       const { ContentLength } = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
       return ContentLength ?? 0;
+    },
+
+    /** Saves an object to a local file, such as a build's icon copy. */
+    download: async (key: string, path: string) => {
+      const { Body } = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+      if (!Body) throw new Error(`Empty object ${key}`);
+      await writeFile(path, await Body.transformToByteArray());
     },
 
     signedLink: (key: string, lifetimeSeconds: number) =>

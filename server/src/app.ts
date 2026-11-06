@@ -2,6 +2,9 @@ import express from 'express';
 import helmet from 'helmet';
 import type { Apps } from './apps';
 import { appsRouter } from './apps/routes';
+import type { Builds } from './builds';
+import { installRouter } from './builds/install';
+import { buildsRouter } from './builds/routes';
 import type { Auth } from './auth';
 import { authRouter } from './auth/routes';
 import type { FetchUrl } from './url/fetcher';
@@ -16,6 +19,7 @@ type AppOptions = {
   auth?: Auth;
   fetchUrl?: FetchUrl;
   apps?: Apps;
+  builds?: Builds;
 };
 
 const probe = async (check: Check, timeoutMs: number) => {
@@ -33,14 +37,19 @@ const probe = async (check: Check, timeoutMs: number) => {
   }
 };
 
-export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps }: AppOptions) => {
+export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps, builds }: AppOptions) => {
   const app = express();
   app.disable('x-powered-by');
   app.use(helmet());
 
   if (auth) app.use('/auth', authRouter(auth));
   if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl));
-  if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl));
+  if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl, builds));
+  if (auth && builds) {
+    // Mounted first, because a phone opening an install link has no session.
+    app.use('/builds/install', installRouter(auth, builds));
+    app.use('/builds', buildsRouter(auth, builds));
+  }
 
   app.get('/health', async (_req, res) => {
     const [mongo, redis] = await Promise.all([

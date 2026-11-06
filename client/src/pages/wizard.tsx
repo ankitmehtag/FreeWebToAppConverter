@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { DEFAULT_BEHAVIOUR, draftSchema, permissionsFor, suggestPackageName, toAppConfig, type Draft } from '@sitetoapk/shared';
 import { api, ApiError, type FieldErrors } from '../api';
+import { BuildPanel } from '../build-panel';
 import { PhonePreview } from '../preview';
+import { useSession } from '../session';
 import type { AppView } from './apps';
 
 type UrlCheck =
@@ -114,6 +116,7 @@ const dataUrlToBlob = async (dataUrl: string) => (await fetch(dataUrl)).blob();
 export const Wizard = () => {
   const { id = '', step = 'basics' } = useParams();
   const navigate = useNavigate();
+  const { me } = useSession();
   const [app, setApp] = useState<AppView | null>(null);
   const [missing, setMissing] = useState(false);
   const [draft, setDraft] = useState<Draft>({});
@@ -483,7 +486,7 @@ export const Wizard = () => {
           {step === 'review' && (
             <div className="stack">
               {app.ready && config ? (
-                <div className="check check-ok" role="status"><p>Your app is ready to build. Building opens in the next update.</p></div>
+                <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} />
               ) : (
                 <div className="check check-bad" role="status"><p>Still needed: {missingItems.join(', ') || 'valid values in the highlighted fields'}.</p></div>
               )}

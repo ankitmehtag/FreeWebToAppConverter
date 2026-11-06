@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1163.0",
+    "@aws-sdk/s3-request-presigner": "^3.1163.0",
     "@sitetoapk/shared": "*",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.0.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.3.0",
     "helmet": "^8.3.0",

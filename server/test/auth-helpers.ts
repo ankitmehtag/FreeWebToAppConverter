@@ -7,6 +7,7 @@ import { MongoClient } from 'mongodb';
 import { createApp } from '../src/app';
 import { prepareApps } from '../src/apps';
 import { createIconStore } from '../src/apps/icons';
+import { prepareBuilds, type BuildsConfig } from '../src/builds';
 import { s3Client } from '@sitetoapk/shared/s3';
 import type { AuthConfig, Mail } from '../src/auth/types';
 import { prepareAuth } from '../src/auth';
@@ -36,7 +37,7 @@ const testIconStore = async () => {
   return { bucket, icons: createIconStore({ ...localS3, bucket }) };
 };
 
-export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: FetchUrl) => {
+export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: FetchUrl, buildsConfig: Partial<BuildsConfig> = {}) => {
   const mongo = await new MongoClient('mongodb://127.0.0.1:27017').connect();
   const db = mongo.db(`auth_test_${randomUUID().slice(0, 8)}`);
   const redis = new Redis('redis://127.0.0.1:6379', { keyPrefix: `test:${randomUUID()}:` });
@@ -64,7 +65,17 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: F
   });
   const { bucket, icons } = await testIconStore();
   const apps = await prepareApps(db, icons);
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps }).listen(0);
+  // Records queued jobs instead of reaching a worker.
+  const jobs: { name: string; data: { buildId: string } }[] = [];
+  const queue = { add: async (name: string, data: { buildId: string }) => void jobs.push({ name, data }) };
+  const builds = await prepareBuilds({
+    db,
+    redis,
+    queue: queue as never,
+    storage: icons,
+    config: { dailyLimit: 3, windowMs: 24 * 60 * 60 * 1000, ...buildsConfig },
+  });
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
@@ -120,11 +131,15 @@ export const makeHarness = async (config: Partial<AuthConfig> = {}, fetchUrl?: F
     url, client, sent, mailTo, tokenIn, db, redis,
     users: db.collection('users'),
     apps: apps.apps,
+    builds: builds.builds,
+    jobs,
     icons,
     bucket,
     sessions: db.collection('sessions'),
     emailTokens: db.collection('emailTokens'),
     close: async () => {
+      builds.hub.close();
+      server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
       await db.dropDatabase();
       await mongo.close();

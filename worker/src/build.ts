@@ -3,8 +3,9 @@ import { copyFile, chmod, mkdir, readFile, rm, stat, writeFile } from 'node:fs/p
 import { join } from 'node:path';
 import { UnrecoverableError } from 'bullmq';
 import type { Collection } from 'mongodb';
-import { setStatus, type BuildRequest } from './builds';
+import { setStatus, type BuildRequest, type FailureKind } from './builds';
 import { containerName, removeContainer, type BuildMounts, type runContainer } from './container';
+import { environmentSecrets, redactor, type LogSink } from './logs';
 import { render } from './render';
 import { artifactKey, FREE_RETENTION_DAYS, type Storage } from './storage';
 import { checkBuild } from './verify';
@@ -27,12 +28,35 @@ export type BuildDeps = {
   workRoot: string;
   storage: Storage;
   signing: Signing;
+  /** The apps collection, so a first success can lock the package name. The build-app script has none. */
+  apps?: Collection;
+  /** Streams lines and statuses to viewers, and keeps the log once the build ends. */
+  logs?: LogSink;
 };
 
 const VERIFY_TIMEOUT_MS = 120000;
 const DOCKER_FAILURE_CODES = new Set([125, 126, 127]);
 
-class BuildFailure extends Error {}
+/** A failure a retry can't fix, with the kind the user is shown. */
+class BuildFailure extends Error {
+  constructor(
+    readonly kind: Exclude<FailureKind, 'infra'>,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/** The icon for this build: the website's copy in storage, or the build-app script's local file. */
+const iconFor = async (deps: BuildDeps, build: BuildRequest, workDir: string) => {
+  if (build.iconKey) {
+    const path = join(workDir, 'icon.png');
+    await deps.storage.download(build.iconKey, path);
+    return path;
+  }
+  if (build.iconPath) return build.iconPath;
+  throw new BuildFailure('input', 'Invalid input: no icon');
+};
 
 const prepareSecrets = async (dir: string, signing: Signing) => {
   await mkdir(dir);
@@ -44,15 +68,16 @@ const prepareSecrets = async (dir: string, signing: Signing) => {
   for (const file of ['key.jks', 'store.pass', 'key.pass']) await chmod(join(dir, file), 0o644);
 };
 
-const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, workDir: string) => {
+const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, workDir: string, onLine: (line: string) => void) => {
   const secretsDir = join(workDir, 'secrets');
   const outputDir = join(workDir, 'output');
   await mkdir(outputDir);
   await chmod(outputDir, 0o777);
   await prepareSecrets(secretsDir, deps.signing);
 
-  const { dir, gradleArgs } = await render({ ...build, parentDir: workDir }).catch((error: Error) => {
-    throw new BuildFailure(`Invalid input: ${error.message}`);
+  const iconPath = await iconFor(deps, build, workDir);
+  const { dir, gradleArgs } = await render({ ...build, iconPath, parentDir: workDir }).catch((error: Error) => {
+    throw new BuildFailure('input', `Invalid input: ${error.message}`);
   });
   await chmod(workDir, 0o755);
   await chmod(dir, 0o755);
@@ -65,14 +90,11 @@ const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, wo
     `-PkeyAlias=${deps.signing.keyAlias}`,
   ];
   const mounts = { generatedDir: dir, secretsDir, outputDir, image: deps.image, buildId };
-  const result = await deps.run({ ...mounts, args, timeoutMs: deps.timeoutMs });
-  if (result.timedOut) throw new BuildFailure('Build timed out');
+  const result = await deps.run({ ...mounts, args, timeoutMs: deps.timeoutMs, onLine });
+  if (result.timedOut) throw new BuildFailure('timeout', 'Build timed out');
   if (result.code !== null && DOCKER_FAILURE_CODES.has(result.code)) throw new Error(`Docker failed: ${result.log}`);
-  if (result.code !== 0) {
-    await deps.builds.updateOne({ _id: buildId as never }, { $set: { log: result.log } });
-    throw new BuildFailure('Build failed');
-  }
-  return { mounts, outputDir, log: result.log };
+  if (result.code !== 0) throw new BuildFailure('compile', 'Build failed');
+  return { mounts, outputDir };
 };
 
 type Mounts = BuildMounts & { image: string; buildId: string };
@@ -95,7 +117,7 @@ const verify = async (deps: BuildDeps, build: BuildRequest, mounts: Mounts, apk:
       signerSha256: deps.signing.signerSha256,
     });
   } catch (error) {
-    throw new BuildFailure(`Check failed: ${(error as Error).message}`);
+    throw new BuildFailure('check', `Check failed: ${(error as Error).message}`);
   }
 };
 
@@ -109,36 +131,57 @@ export const processBuild = async (
   if (!build || ['success', 'failed', 'canceled'].includes(build.status)) return;
 
   const workDir = join(deps.workRoot, buildId);
+  const { signing, logs } = deps;
+  const redact = redactor([signing.storePassword, signing.keyPassword, signing.keystorePath, workDir, deps.workRoot, ...environmentSecrets()]);
+  // Lines go out one after another, in the order the container wrote them.
+  let sent = Promise.resolve();
+  const onLine = (line: string) => {
+    const text = redact(line);
+    if (logs) sent = sent.then(() => logs.line(buildId, text)).catch(() => undefined);
+  };
+  let ended = false;
+  const move = async (status: string, fields: Record<string, unknown> = {}) => {
+    await setStatus(deps.builds, buildId, status, fields);
+    ended = ['success', 'failed'].includes(status);
+    await logs?.status(buildId, status, fields.failureKind as FailureKind | undefined).catch(() => undefined);
+  };
+
   try {
     // A crashed worker leaves its container and files behind, and this retry reuses both names.
     await removeContainer(containerName(buildId));
     await rm(workDir, { recursive: true, force: true });
     await mkdir(workDir, { recursive: true });
-    await setStatus(deps.builds, buildId, 'building', { startedAt: new Date() });
+    await move('building', { startedAt: new Date() });
 
-    const { mounts, outputDir, log } = await compile(deps, build, buildId, workDir);
+    const { mounts, outputDir } = await compile(deps, build, buildId, workDir, onLine);
     const apk = join(outputDir, 'app-release.apk');
 
-    await setStatus(deps.builds, buildId, 'signing', { log });
+    await move('signing');
     await verify(deps, build, mounts, apk);
 
-    await setStatus(deps.builds, buildId, 'uploading');
+    await move('uploading');
     const sha256 = createHash('sha256').update(await readFile(apk)).digest('hex');
     const key = artifactKey(build.plan, buildId);
     const artifactBytes = await deps.storage.put(key, apk);
     const expiresAt = new Date(Date.now() + FREE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
-    await setStatus(deps.builds, buildId, 'success', { artifactKey: key, artifactBytes, sha256, expiresAt });
+    await move('success', { artifactKey: key, artifactBytes, sha256, expiresAt });
+    // Only the first success sets it, so the lock records when the package name became fixed.
+    if (build.appId) await deps.apps?.updateOne({ _id: build.appId, lockedAt: null }, { $set: { lockedAt: new Date() } });
   } catch (error) {
     const message = (error as Error).message;
     if (error instanceof BuildFailure) {
-      await setStatus(deps.builds, buildId, 'failed', { error: message });
+      await move('failed', { error: message, failureKind: error.kind });
       throw new UnrecoverableError(message);
     }
     const last = attemptsMade + 1 >= attempts;
-    await setStatus(deps.builds, buildId, last ? 'failed' : 'queued', { error: message });
+    // Our own failures don't use up the user's daily builds.
+    const failed = { error: message, failureKind: 'infra', countsTowardLimit: false };
+    await move(last ? 'failed' : 'queued', last ? failed : { error: message });
     throw error;
   } finally {
     await rm(workDir, { recursive: true, force: true });
+    await sent;
+    if (ended) await logs?.finish(buildId).catch(() => undefined);
   }
 };

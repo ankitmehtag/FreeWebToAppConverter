@@ -1,7 +1,9 @@
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Redis } from 'ioredis';
 import { MongoClient } from 'mongodb';
 import { runContainer } from './container';
+import { createLogSink } from './logs';
 import { assertImageMatches } from './image';
 import { startWorker } from './queue';
 import { reap } from './reaper';
@@ -17,6 +19,8 @@ await assertImageMatches(image);
 
 const mongo = await new MongoClient(requireEnv('MONGO_URL')).connect();
 const builds = mongo.db().collection('builds');
+const apps = mongo.db().collection('apps');
+const logs = createLogSink(new Redis(requireEnv('REDIS_URL')), mongo.db().collection('buildLogs'));
 
 const reaperDeps = { builds, timeoutMs, workRoot };
 await reap(reaperDeps);
@@ -25,6 +29,8 @@ setInterval(() => void reap(reaperDeps).catch((error) => console.error('Reaper f
 const worker = startWorker(
   {
     builds,
+    apps,
+    logs,
     run: runContainer,
     image,
     timeoutMs,

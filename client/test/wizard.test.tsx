@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Draft } from '@sitetoapk/shared';
 import { PhonePreview } from '../src/preview';
 import { Wizard } from '../src/pages/wizard';
+import { SessionProvider } from '../src/session';
 
 type Call = { method: string; path: string; body?: unknown };
 let calls: Call[];
@@ -23,6 +24,7 @@ beforeEach(() => {
     const method = init.method ?? 'GET';
     const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
     calls.push({ method, path, body });
+    if (path === '/auth/me') return json({ email: 'a@example.com', emailVerified: true });
     if (path === '/apps/a1' && method === 'GET') return json(view());
     if (path === '/apps/a1' && method === 'PUT') {
       stored.draft = body;
@@ -42,9 +44,11 @@ afterEach(() => {
 const open = (step: string) =>
   render(
     <MemoryRouter initialEntries={[`/my-apps/a1/${step}`]}>
-      <Routes>
-        <Route path="/my-apps/:id/:step?" element={<Wizard />} />
-      </Routes>
+      <SessionProvider>
+        <Routes>
+          <Route path="/my-apps/:id/:step?" element={<Wizard />} />
+        </Routes>
+      </SessionProvider>
     </MemoryRouter>,
   );
 

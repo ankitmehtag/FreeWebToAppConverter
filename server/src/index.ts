@@ -1,8 +1,11 @@
+import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
+import { QUEUE_NAME } from '@sitetoapk/shared/builds';
 import { MongoClient } from 'mongodb';
 import { createApp } from './app';
 import { prepareApps } from './apps';
 import { createIconStore } from './apps/icons';
+import { prepareBuilds } from './builds';
 import { prepareAuth } from './auth';
 import { resendMailer, smtpMailer } from './auth/mailer';
 import { createFetcher } from './url/fetcher';
@@ -39,6 +42,12 @@ const resendKey = process.env.RESEND_API_KEY;
 const googleId = process.env.GOOGLE_CLIENT_ID;
 
 await mongo.connect();
+const storage = createIconStore({
+  endpoint: requireEnv('R2_ENDPOINT'),
+  bucket: requireEnv('R2_BUCKET'),
+  accessKeyId: requireEnv('R2_ACCESS_KEY_ID'),
+  secretAccessKey: requireEnv('R2_SECRET_ACCESS_KEY'),
+});
 const auth = await prepareAuth({
   db: mongo.db(),
   redis,
@@ -79,15 +88,14 @@ const app = createApp({
   },
   auth,
   fetchUrl: createFetcher(),
-  apps: await prepareApps(
-    mongo.db(),
-    createIconStore({
-      endpoint: requireEnv('R2_ENDPOINT'),
-      bucket: requireEnv('R2_BUCKET'),
-      accessKeyId: requireEnv('R2_ACCESS_KEY_ID'),
-      secretAccessKey: requireEnv('R2_SECRET_ACCESS_KEY'),
-    }),
-  ),
+  apps: await prepareApps(mongo.db(), storage),
+  builds: await prepareBuilds({
+    db: mongo.db(),
+    redis,
+    queue: new Queue(QUEUE_NAME, { connection: { url: requireEnv('REDIS_URL') } }),
+    storage,
+    config: { dailyLimit: 3, windowMs: 24 * 60 * 60 * 1000, installUrl: process.env.INSTALL_URL || undefined },
+  }),
 });
 
 const server = app.listen(port, () => console.log(`API listening on port ${port}`));

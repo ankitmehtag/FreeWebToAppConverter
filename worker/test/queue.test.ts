@@ -36,7 +36,7 @@ describe('AC12: concurrency', () => {
     const deps: BuildDeps = {
       builds, run, image: 'test', timeoutMs: 1000,
       workRoot: mkdtempSync(join(tmpdir(), 'f04-work-')),
-      storage: { put: async () => 1, signedLink: async () => '', remove: async () => undefined, applyLifecycle: async () => undefined, readLifecycle: async () => [] },
+      storage: { put: async () => 1, download: async () => undefined, signedLink: async () => '', remove: async () => undefined, applyLifecycle: async () => undefined, readLifecycle: async () => [] },
       signing: { keystorePath: tempFile('k.jks', 'k'), storePassword: 'a', keyPassword: 'b', keyAlias: 'test', signerSha256: SIGNER },
     };
     const queue = new Queue(name, { connection });

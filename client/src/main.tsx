@@ -4,6 +4,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { Layout } from './layout';
 import { ForgotPassword, ResetPassword, SignIn, SignUp, VerifyEmail } from './pages/account';
 import { AppsList } from './pages/apps';
+import { BuildPage } from './pages/build';
+import { InstallPage } from './pages/install';
 import { Wizard } from './pages/wizard';
 import { RequireSignIn, SessionProvider, useSession } from './session';
 import './styles.css';
@@ -30,7 +32,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="verify-email" element={<VerifyEmail />} />
             <Route path="my-apps" element={signedIn(<AppsList />)} />
+            <Route path="my-apps/:id/builds/:buildId" element={signedIn(<BuildPage />)} />
             <Route path="my-apps/:id/:step?" element={signedIn(<Wizard />)} />
+            <Route path="install/:token" element={<InstallPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

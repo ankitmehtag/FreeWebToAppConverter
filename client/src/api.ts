@@ -5,6 +5,8 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly fields: FieldErrors = {},
+    /** The whole answer, for refusals that carry more, such as when to try again. */
+    readonly body: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -40,6 +42,6 @@ export const api = async <T = unknown>(path: string, options: Options = {}): Pro
   }
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(response.status, data.error ?? 'Something went wrong', data.fields);
+  if (!response.ok) throw new ApiError(response.status, data.error ?? 'Something went wrong', data.fields, data);
   return data as T;
 };

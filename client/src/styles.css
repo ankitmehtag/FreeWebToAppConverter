@@ -789,3 +789,196 @@ textarea.mono {
     display: none;
   }
 }
+
+/* Builds */
+
+.tag-failed {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.build-panel {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.build-panel p {
+  margin: 0;
+}
+
+.build-panel-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.build-panel-row .field {
+  flex: 1;
+  max-width: 200px;
+}
+
+.build-page {
+  display: grid;
+  gap: 24px;
+}
+
+.build-page .page-head {
+  margin-bottom: 0;
+}
+
+.build-code {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.stages {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: stage;
+}
+
+.stages li {
+  padding: 10px 8px 0;
+  border-top: 4px solid var(--line);
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.stages .stage-done {
+  border-color: var(--teal);
+  color: var(--ink);
+}
+
+.stages .stage-now {
+  border-color: var(--marigold);
+  color: var(--ink);
+}
+
+.build-ready {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.build-ready p {
+  margin: 0;
+}
+
+.build-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.sha {
+  overflow-wrap: anywhere;
+}
+
+.install-qr {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.install-qr img {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.install-qr p {
+  margin: 0;
+}
+
+.install-url {
+  overflow-wrap: anywhere;
+}
+
+.log {
+  height: 340px;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: #d7e4e1;
+  font: 400 0.8rem/1.55 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.history {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history a {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: inherit;
+  text-decoration: none;
+}
+
+.history a[aria-current='page'] {
+  border-color: var(--teal);
+}
+
+.install-card {
+  justify-items: center;
+  text-align: center;
+}
+
+.install-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+}
+
+.install-card .button {
+  width: 100%;
+}
+
+.install-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .install-qr {
+    flex-direction: column;
+  }
+
+  .history a {
+    grid-template-columns: 1fr auto;
+  }
+
+  .stages li {
+    font-size: 0.75rem;
+  }
+}
