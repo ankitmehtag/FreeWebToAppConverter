@@ -99,7 +99,7 @@ Then `systemctl enable --now sitetoapk-worker`. Killing it mid-build is safe: on
 3. `docker compose -f compose.prod.yml up -d --build --wait`, then `systemctl restart sitetoapk-worker`.
 
 ## Backups
-- Mongo, nightly: `docker compose -f compose.prod.yml exec -T mongo mongodump --archive --gzip > /var/backups/sitetoapk-$(date +%F).gz`, keeping 14 days, and copying each to R2 under a `backups/` prefix that the 7-day rule doesn't touch. Restore with `mongorestore --archive --gzip`, and test a restore once before launch.
+- Mongo, nightly at 03:15 server time: `deploy/backup.sh` dumps the database to `/var/backups/sitetoapk/` (14 days kept) and copies each dump to R2 under `backups/`, which the 7-day rule doesn't touch. Install it once: `echo '15 3 * * * root /bin/bash /opt/sitetoapk/deploy/backup.sh >> /var/log/sitetoapk-backup.log 2>&1' > /etc/cron.d/sitetoapk-backup`. Restore with `docker compose -f compose.prod.yml exec -T mongo mongorestore --archive --gzip --drop < <file>`, and test a restore once before launch (into another database name first, with `--nsFrom 'sitetoapk.*' --nsTo 'restore_test.*'`).
 - R2 holds icons and APKs. Free APKs expire after 7 days by design, so only icons need keeping, and R2 keeps them durably.
 - The shared signing key and `.env.production`, copied once to a safe place off the server.
 

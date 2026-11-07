@@ -29,3 +29,8 @@
 		-Server
 	}
 }
+
+# www is only an alias: it sends visitors to the main address, keeping the path.
+www.{$SITE_ADDRESS} {
+	redir https://{$SITE_ADDRESS}{uri} permanent
+}
