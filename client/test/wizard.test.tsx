@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -141,10 +141,17 @@ describe('AC15: phone preview', () => {
     expect(frame.getAttribute('sandbox')).not.toContain('allow-top-navigation');
   });
 
-  it('explains a site that blocks embedding, with no blank frame', () => {
+  it('shows a picture of a site that blocks embedding, with no blank frame', () => {
     render(<PhonePreview appName="Shop" startUrl="https://shop.example/" embeddable={false} />);
     expect(screen.queryByTitle(/Live preview/)).toBeNull();
-    expect(screen.getByText(/doesn’t allow itself to be shown/)).toBeInTheDocument();
+    expect(screen.getByAltText('Preview of Shop')).toHaveAttribute('src', '/url/screenshot?url=https%3A%2F%2Fshop.example%2F');
+  });
+
+  it('explains itself only when the picture can’t be made', () => {
+    render(<PhonePreview appName="Shop" startUrl="https://shop.example/" embeddable={false} />);
+    fireEvent.error(screen.getByAltText('Preview of Shop'));
+    expect(screen.queryByAltText('Preview of Shop')).toBeNull();
+    expect(screen.getByText(/couldn’t draw a preview/)).toBeInTheDocument();
     expect(screen.getByText(/real app isn’t affected/)).toBeInTheDocument();
   });
 });

@@ -1,3 +1,4 @@
+import type { Screenshot } from '../src/url/screenshot';
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -43,7 +44,7 @@ export const makeHarness = async (
   config: Partial<AuthConfig> = {},
   fetchUrl?: FetchUrl,
   buildsConfig: Partial<BuildsConfig> = {},
-  { trustProxy, unsafeLookup }: { trustProxy?: string; unsafeLookup?: UnsafeLookup } = {},
+  { trustProxy, unsafeLookup, screenshot }: { trustProxy?: string; unsafeLookup?: UnsafeLookup; screenshot?: Screenshot } = {},
 ) => {
   const mongo = await new MongoClient('mongodb://127.0.0.1:27017').connect();
   const db = mongo.db(`auth_test_${randomUUID().slice(0, 8)}`);
@@ -83,7 +84,7 @@ export const makeHarness = async (
     config: { dailyLimit: 3, windowMs: 24 * 60 * 60 * 1000, ...buildsConfig },
   });
   const reports = await prepareReports(db, 'abuse@example.com');
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports }).listen(0);
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 

@@ -11,6 +11,7 @@ import type { Auth } from './auth';
 import { authRouter } from './auth/routes';
 import type { FetchUrl } from './url/fetcher';
 import { urlRouter } from './url/routes';
+import type { Screenshot } from './url/screenshot';
 
 type Check = () => Promise<void>;
 
@@ -20,6 +21,7 @@ type AppOptions = {
   checkTimeoutMs?: number;
   auth?: Auth;
   fetchUrl?: FetchUrl;
+  screenshot?: Screenshot;
   apps?: Apps;
   builds?: Builds;
   /** Express's `trust proxy` value. Unset, forwarded headers are ignored and `req.ip` is the socket address. */
@@ -44,7 +46,7 @@ const probe = async (check: Check, timeoutMs: number) => {
   }
 };
 
-export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps, builds, trustProxy, unsafe, reports }: AppOptions) => {
+export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps, builds, trustProxy, unsafe, reports, screenshot }: AppOptions) => {
   const app = express();
   app.disable('x-powered-by');
   // Only a named proxy may say who the visitor is, so a forged header can't dodge per-IP limits.
@@ -52,7 +54,7 @@ export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth,
   app.use(helmet());
 
   if (auth) app.use('/auth', authRouter(auth));
-  if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl, unsafe));
+  if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl, unsafe, screenshot));
   if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl, builds, unsafe));
   if (auth && builds) {
     // Mounted first, because a phone opening an install link has no session.

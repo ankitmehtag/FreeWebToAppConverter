@@ -42,7 +42,7 @@ const isEmbeddable = (headers: IncomingHttpHeaders) => {
 };
 
 /** Fails open: while the list can't be reached, the wizard keeps working and the build start checks again. */
-const isListed = async (unsafe: UnsafeChecker, urls: string[]) => {
+export const isListed = async (unsafe: UnsafeChecker, urls: string[]) => {
   try {
     return (await unsafe(urls)) === 'unsafe';
   } catch (error) {

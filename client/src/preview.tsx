@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 type PreviewProps = {
   appName?: string;
   colour?: string;
@@ -30,11 +32,34 @@ const Screen = ({ startUrl, embeddable, appName, iconUrl, emptyText }: PreviewPr
       />
     );
   }
+  return <Blocked startUrl={startUrl} appName={appName} iconUrl={iconUrl} />;
+};
+
+/** A site that won't be framed is shown as a picture of itself. Only if that fails does the screen explain. */
+const Blocked = ({ startUrl, appName, iconUrl }: Pick<PreviewProps, 'startUrl' | 'appName' | 'iconUrl'>) => {
+  // Keyed by address, so a new site starts again instead of keeping the last site's failure.
+  const [failed, setFailed] = useState<string>();
+  const [loaded, setLoaded] = useState<string>();
+  if (failed !== startUrl) {
+    return (
+      <>
+        <img
+          key={startUrl}
+          className="phone-site phone-shot"
+          src={`/url/screenshot?url=${encodeURIComponent(startUrl!)}`}
+          alt={`Preview of ${appName || 'your site'}`}
+          onLoad={() => setLoaded(startUrl)}
+          onError={() => setFailed(startUrl)}
+        />
+        {loaded !== startUrl && <div className="phone-note phone-loading">Loading a preview of your site…</div>}
+      </>
+    );
+  }
   return (
     <div className="phone-note phone-blocked">
       {iconUrl && <img src={iconUrl} alt="" className="phone-blocked-icon" />}
       <strong>{appName || 'Your app'}</strong>
-      <p>Your site doesn’t allow itself to be shown inside other pages, so we can’t preview it here.</p>
+      <p>We couldn’t draw a preview of your site here.</p>
       <p>The real app isn’t affected: it opens your site directly.</p>
     </div>
   );

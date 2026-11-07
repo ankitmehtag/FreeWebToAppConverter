@@ -30,6 +30,7 @@ services:
       REDIS_URL: redis://redis:6379
       # Caddy is the only proxy, on this fixed network.
       TRUST_PROXY: 172.30.0.0/24
+      SHOT_URL: http://shot:4000
     depends_on:
       mongo:
         condition: service_healthy
@@ -41,7 +42,30 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
-    networks: [web]
+    networks: [web, shot]
+
+  # Draws a picture of a site that won't be framed, for the phone preview. It runs a browser on strangers'
+  # pages, so it has no secrets, no database and no network but its own, and the API is the only one to reach it.
+  shot:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile.shot
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 256
+    restart: unless-stopped
+    networks: [shot]
 
   mongo:
     image: mongo:7
@@ -77,6 +101,8 @@ networks:
     ipam:
       config:
         - subnet: 172.30.0.0/24
+  # Only the API and the screenshot service. It can reach the internet, but not Mongo, Redis or Caddy.
+  shot:
 
 volumes:
   caddy-data:

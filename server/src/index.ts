@@ -11,6 +11,7 @@ import { createUnsafeChecker, webRiskLookup } from './abuse/unsafe';
 import { prepareAuth } from './auth';
 import { resendMailer, smtpMailer } from './auth/mailer';
 import { createFetcher } from './url/fetcher';
+import { createShotClient } from './url/screenshot';
 
 const requireEnv = (name: string) => {
   const value = process.env[name];
@@ -90,6 +91,8 @@ const app = createApp({
   },
   auth,
   fetchUrl: createFetcher(),
+  // Off until a screenshot service is named, as in local development without Compose's `shot`.
+  screenshot: process.env.SHOT_URL ? createShotClient(process.env.SHOT_URL) : undefined,
   trustProxy: process.env.TRUST_PROXY || undefined,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
