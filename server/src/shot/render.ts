@@ -33,11 +33,14 @@ const MOBILE_AGENT =
  * A name that turns private after the check, a redirect to an internal address or a script that calls home
  * all end at the same refusal.
  */
-export const answerThroughFetcher = (fetchUrl: FetchUrl) => async (route: RouteLike) => {
+export const answerThroughFetcher = (fetchUrl: FetchUrl, cutoff?: Promise<'cut'>) => async (route: RouteLike) => {
   const request = route.request();
   if (request.method() !== 'GET') return route.abort('blockedbyclient');
   try {
-    const page = await fetchUrl(request.url());
+    const answer = await (cutoff ? Promise.race([fetchUrl(request.url()), cutoff]) : fetchUrl(request.url()));
+    // Past the cutoff, whatever is still loading is left out, so the page can finish and be drawn.
+    if (answer === 'cut') return await route.abort('failed');
+    const page = answer;
     const type = page.headers['content-type'];
     return await route.fulfill({
       status: page.status,
@@ -66,9 +69,11 @@ export type RendererOptions = {
   fetchUrl: FetchUrl;
   launch?: () => Promise<BrowserLike>;
   totalMs?: number;
+  /** After this long, requests still waiting are dropped. */
+  cutoffMs?: number;
 };
 
-export const createRenderer = ({ fetchUrl, launch = launchChromium, totalMs = 45_000 }: RendererOptions): Render => {
+export const createRenderer = ({ fetchUrl, launch = launchChromium, totalMs = 40_000, cutoffMs = 15_000 }: RendererOptions): Render => {
   const draw = async (url: string): Promise<Shot> => {
     // The checked fetcher decides first: a refused address never reaches the browser.
     const first = await fetchUrl(url);
@@ -86,10 +91,12 @@ export const createRenderer = ({ fetchUrl, launch = launchChromium, totalMs = 45
         // This is a picture of the site, not the site: its own page rules don't need to hold.
         bypassCSP: true,
       });
-      await context.route('**/*', answerThroughFetcher(async (target) => answered.get(target) ?? (await fetchUrl(target))));
+      // A slow script or font from a third party must not hold up the picture for everything else.
+      const cutoff = new Promise<'cut'>((resolve) => setTimeout(() => resolve('cut'), cutoffMs));
+      await context.route('**/*', answerThroughFetcher(async (target) => answered.get(target) ?? (await fetchUrl(target)), cutoff));
       const page = await context.newPage();
       // A page that never finishes loading still has something to show.
-      await page.goto(first.url, { waitUntil: 'load', timeout: 20_000 }).catch(() => undefined);
+      await page.goto(first.url, { waitUntil: 'load', timeout: 18_000 }).catch(() => undefined);
       await page.waitForTimeout(800);
       return { image: await page.screenshot({ type: 'jpeg', quality: 70 }) };
     } finally {

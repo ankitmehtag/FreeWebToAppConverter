@@ -38,6 +38,14 @@ describe('the browser only sees what the checked fetcher returns', () => {
     expect(calls.aborted).toBe('failed');
   });
 
+  it('drops a request that is still waiting at the cutoff', async () => {
+    const { route, calls } = fakeRoute('https://slow.test/widget.js');
+    const cutoff = new Promise<'cut'>((resolve) => setTimeout(() => resolve('cut'), 20));
+    await answerThroughFetcher(() => new Promise(() => {}), cutoff)(route);
+    expect(calls.fulfilled).toBeUndefined();
+    expect(calls.aborted).toBe('failed');
+  });
+
   it('refuses anything but GET', async () => {
     const { route, calls } = fakeRoute('https://site.test/', 'POST');
     await answerThroughFetcher(async (url) => page(url))(route);
