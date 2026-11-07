@@ -52,6 +52,8 @@ keytool -genkeypair -keystore /etc/sitetoapk/shared.jks -alias shared -keyalg RS
 ```
 
 ## First start
+On a fresh Ubuntu 24.04 server, `sudo bash deploy/setup-server.sh` installs Docker, Node.js 22 and git, adds 4 GB of swap, opens only ports 22, 80 and 443, and creates `/var/lib/sitetoapk/builds` and `/etc/sitetoapk`. Clone the repository first (below), then run it.
+
 ```sh
 git clone https://github.com/ankitmehtag/FreeWebToAppConverter.git /opt/sitetoapk && cd /opt/sitetoapk
 npm ci
