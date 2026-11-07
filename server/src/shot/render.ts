@@ -68,7 +68,7 @@ export type RendererOptions = {
   totalMs?: number;
 };
 
-export const createRenderer = ({ fetchUrl, launch = launchChromium, totalMs = 25_000 }: RendererOptions): Render => {
+export const createRenderer = ({ fetchUrl, launch = launchChromium, totalMs = 40_000 }: RendererOptions): Render => {
   const draw = async (url: string): Promise<Shot> => {
     // The checked fetcher decides first: a refused address never reaches the browser.
     const first = await fetchUrl(url);
@@ -89,7 +89,7 @@ export const createRenderer = ({ fetchUrl, launch = launchChromium, totalMs = 25
       await context.route('**/*', answerThroughFetcher(async (target) => answered.get(target) ?? (await fetchUrl(target))));
       const page = await context.newPage();
       // A page that never finishes loading still has something to show.
-      await page.goto(first.url, { waitUntil: 'load', timeout: 12_000 }).catch(() => undefined);
+      await page.goto(first.url, { waitUntil: 'load', timeout: 15_000 }).catch(() => undefined);
       await page.waitForTimeout(800);
       return { image: await page.screenshot({ type: 'jpeg', quality: 70 }) };
     } finally {
