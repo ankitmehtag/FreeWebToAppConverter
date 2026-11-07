@@ -14,7 +14,7 @@ NODE_MAJOR=22
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y ca-certificates curl gnupg git ufw unattended-upgrades
+apt-get install -y ca-certificates curl gnupg git ufw unattended-upgrades unzip
 
 # Docker Engine and the Compose plugin, from Docker's own repository.
 if ! command -v docker >/dev/null; then
