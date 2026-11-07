@@ -96,7 +96,7 @@ Then `systemctl enable --now sitetoapk-worker`. Killing it mid-build is safe: on
 ## Updating
 1. `git pull`, `npm ci`, `npm run build -w client`.
 2. If `android-template/` changed, build the new builder image, run `verify-image` on it, and only then change `BUILDER_IMAGE`.
-3. `docker compose -f compose.prod.yml up -d --build --wait`, then `systemctl restart sitetoapk-worker`.
+3. `docker compose -f compose.prod.yml up -d --build --wait`, then `systemctl restart sitetoapk-worker`. If `deploy/Caddyfile` changed, also `docker compose -f compose.prod.yml restart caddy`: `git pull` replaces the file, and the container keeps reading the old one until it restarts.
 
 ## Backups
 - Mongo, nightly at 03:15 server time: `deploy/backup.sh` dumps the database to `/var/backups/sitetoapk/` (14 days kept) and copies each dump to R2 under `backups/`, which the 7-day rule doesn't touch. Install it once: `echo '15 3 * * * root /bin/bash /opt/sitetoapk/deploy/backup.sh >> /var/log/sitetoapk-backup.log 2>&1' > /etc/cron.d/sitetoapk-backup`. Restore with `docker compose -f compose.prod.yml exec -T mongo mongorestore --archive --gzip --drop < <file>`, and test a restore once before launch (into another database name first, with `--nsFrom 'sitetoapk.*' --nsTo 'restore_test.*'`).
