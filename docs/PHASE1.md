@@ -29,6 +29,7 @@ These are the "before launch" items in [FEATURES.md](FEATURES.md) and [deploy/RE
 1. A server, the domain pointed at it, and the shared signing key created and backed up.
 2. The Google OAuth callback for the domain.
 3. A Google Web Risk key on its free tier, to switch the unsafe-site check on.
-4. A lawyer's review of the Terms, Privacy and Acceptable Use drafts.
-5. A mailbox for `support@freewebsitetoappconverter.com`.
-6. The load test and Lighthouse run again on the real server.
+4. A mailbox for `support@freewebsitetoappconverter.com`.
+5. The load test and Lighthouse run again on the real server.
+
+One week after going live: review the Terms, Privacy and Acceptable Use pages properly, then remove the "Draft" note from them (`client/src/pages/legal.tsx`).

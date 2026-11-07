@@ -102,6 +102,6 @@ Then `systemctl enable --now sitetoapk-worker`. Killing it mid-build is safe: on
 - The shared signing key and `.env.production`, copied once to a safe place off the server.
 
 ## Before launch
-- [ ] Every item under "Accounts needed along the way" in `docs/FEATURES.md`: the Google OAuth callback, a Web Risk key, the lawyer's review of the legal pages, and a mailbox for `support@`.
+- [ ] Every item under "Accounts needed along the way" in `docs/FEATURES.md`: the Google OAuth callback, a Web Risk key, and a mailbox for `support@`. The legal pages go live with their "Draft" note, and are reviewed a week after launch.
 - [ ] The load test on this server: `npm run load-test -w worker` with the worker service stopped (see `docs/specs/F12-mvp-sign-off`).
 - [ ] Lighthouse on the live pages, as in F11.

@@ -55,4 +55,4 @@ Android build tools are x86-64 on Linux, so an Apple Silicon Mac runs the builde
 - F06: Resend, Google OAuth client
 - Before launch: add the `freewebsitetoappconverter.com` callback URL to the Google OAuth client. The domain is verified in Resend (2026-11-06).
 - Before launch: a Google Web Risk API key on its free tier, to switch on F10's unsafe-site check
-- Before launch: a lawyer checks F11's draft Terms, Privacy and Acceptable Use, and `support@freewebsitetoappconverter.com` can receive mail
+- Before launch: `support@freewebsitetoappconverter.com` can receive mail. The owner chose to launch with F11's Terms, Privacy and Acceptable Use as they are, keeping the "Draft" note on the pages, and to review them properly one week after going live (owner, 2026-11-07)
