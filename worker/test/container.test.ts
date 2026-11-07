@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { containerArgs, listBuildContainers, runContainer, type BuildMounts } from '../src/container';
+import { containerArgs, listBuildContainers, removeAllBuildContainers, runContainer, type BuildMounts } from '../src/container';
 
 const image = process.env.BUILDER_IMAGE ?? 'sitetoapk-builder:dev';
 
@@ -108,4 +108,22 @@ describe.sequential('AC13: timeout', () => {
     expect(Date.now() - started).toBeLessThan(30000);
     expect(await listBuildContainers()).toEqual([]);
   });
+});
+
+describe('F12: a new worker starts clean', () => {
+  it('removes build containers left by a dead worker, and nothing else', () => {
+    const image = 'sitetoapk-builder:dev';
+    const run = (label: string[]) =>
+      execFileSync('docker', ['run', '-d', ...label, '--platform', 'linux/amd64', '--entrypoint', 'sleep', image, '300'], { encoding: 'utf8' }).trim();
+    const orphan = run(['--label', 'sitetoapk.build=orphan-test']);
+    const other = run([]);
+    return removeAllBuildContainers()
+      .then(async (count) => {
+        expect(count).toBeGreaterThanOrEqual(1);
+        expect(await listBuildContainers()).toEqual([]);
+        expect(execFileSync('docker', ['ps', '-q', '--filter', `id=${other}`], { encoding: 'utf8' }).trim()).not.toBe('');
+        expect(execFileSync('docker', ['ps', '-aq', '--filter', `id=${orphan}`], { encoding: 'utf8' }).trim()).toBe('');
+      })
+      .finally(() => execFileSync('docker', ['rm', '-f', other]));
+  }, 60_000);
 });

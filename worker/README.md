@@ -15,3 +15,9 @@ Build one app without the queue, and print its download link:
 ```sh
 npm run build-app -w worker -- /path/to/config.json /path/to/icon.png
 ```
+
+Before rolling out a new builder image, check it builds and signs the sample app. It exits non-zero on any problem, and never touches the real bucket:
+
+```sh
+npm run verify-image -w worker -- sitetoapk-builder:dev
+```

@@ -99,3 +99,14 @@ export const listBuildContainers = async () => {
   const { stdout } = await exec('docker', ['ps', '-aq', '--filter', `label=${BUILD_LABEL}`]);
   return stdout.split('\n').filter(Boolean);
 };
+
+/**
+ * Removes every build container on this host. A worker calls it once before taking jobs: one worker
+ * runs per host, so any container already here belongs to a worker that died. Left running, those
+ * would compete for memory with the builds the new worker starts, while BullMQ hands their jobs back.
+ */
+export const removeAllBuildContainers = async () => {
+  const ids = await listBuildContainers();
+  if (ids.length) await exec('docker', ['rm', '-f', ...ids]);
+  return ids.length;
+};

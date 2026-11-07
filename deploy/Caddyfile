@@ -1,0 +1,31 @@
+# Serves the built site and the API from one origin, as the client expects.
+# SITE_ADDRESS is the domain in production, where Caddy gets the TLS certificate by itself.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Caddy sets X-Forwarded-For from the real connection and drops any the visitor sent,
+	# so the API (TRUST_PROXY) only ever believes Caddy.
+	@api path /auth /auth/* /apps /apps/* /url /url/* /builds /builds/* /reports /reports/* /health
+	handle @api {
+		reverse_proxy api:3000 {
+			# Live build logs are Server-Sent Events, so nothing may be held back.
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv/site
+		# Public pages are prerendered as <page>.html. Every other page starts from app.html.
+		# {path}index.html is for "/", which try_files sees as a folder, not a file.
+		try_files {path} {path}.html {path}index.html /app.html
+		file_server
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

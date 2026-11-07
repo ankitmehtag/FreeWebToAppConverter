@@ -11,3 +11,4 @@ local.properties
 .kotlin/
 dist/
 dist-server/
+client/e2e/out/

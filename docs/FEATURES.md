@@ -21,7 +21,7 @@ Only one feature is in progress at a time. The riskiest part (website to working
 | **F09 Build experience** | Start build, live logs, My Apps, download, QR install | Double-click creates one build; parallel requests never reuse a versionCode; 3/day limit enforced; no secrets in logs; QR install works on a real phone | done |
 | **F10 Abuse protection** | Safe Browsing, report link, takedown (brand denylist removed by the owner) | Google's test URL blocked; takedown revokes the download link | done |
 | **F11 Public website** | Landing, pricing, FAQ, legal, SEO, URL checker | Pages render on mobile and desktop; checker uses F07 | done |
-| **F12 MVP sign-off** | Playwright end-to-end, 20-build load test, sample build script | Sign up, create, build, install and site load are automated; load test shows no orphans, leaks or secrets | not started |
+| **F12 MVP sign-off** | Playwright end-to-end, 20-build load test, sample build script | Sign up, create, build, install and site load are automated; load test shows no orphans, leaks or secrets | done |
 
 ## Phase 2: paid product
 

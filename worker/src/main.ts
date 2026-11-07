@@ -2,7 +2,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Redis } from 'ioredis';
 import { MongoClient } from 'mongodb';
-import { runContainer } from './container';
+import { removeAllBuildContainers, runContainer } from './container';
 import { createLogSink } from './logs';
 import { assertImageMatches } from './image';
 import { startWorker } from './queue';
@@ -23,6 +23,8 @@ const apps = mongo.db().collection('apps');
 const logs = createLogSink(new Redis(requireEnv('REDIS_URL')), mongo.db().collection('buildLogs'));
 
 const reaperDeps = { builds, timeoutMs, workRoot };
+const leftovers = await removeAllBuildContainers();
+if (leftovers) console.log(`Removed ${leftovers} build container(s) left by a previous worker`);
 await reap(reaperDeps);
 setInterval(() => void reap(reaperDeps).catch((error) => console.error('Reaper failed', error)), REAP_INTERVAL_MS);
 

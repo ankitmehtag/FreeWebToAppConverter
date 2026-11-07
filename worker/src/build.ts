@@ -36,6 +36,9 @@ export type BuildDeps = {
 
 const VERIFY_TIMEOUT_MS = 120000;
 const DOCKER_FAILURE_CODES = new Set([125, 126, 127]);
+// Killed for memory (137), or Gradle's daemon killed under it: the host's fault, not the app's.
+const OUT_OF_MEMORY_CODE = 137;
+const DAEMON_LOST = 'Gradle build daemon disappeared unexpectedly';
 
 /** A failure a retry can't fix, with the kind the user is shown. */
 class BuildFailure extends Error {
@@ -93,6 +96,9 @@ const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, wo
   const result = await deps.run({ ...mounts, args, timeoutMs: deps.timeoutMs, onLine });
   if (result.timedOut) throw new BuildFailure('timeout', 'Build timed out');
   if (result.code !== null && DOCKER_FAILURE_CODES.has(result.code)) throw new Error(`Docker failed: ${result.log}`);
+  if (result.code === OUT_OF_MEMORY_CODE || (result.code !== 0 && result.log.includes(DAEMON_LOST))) {
+    throw new Error('Build ran out of memory');
+  }
   if (result.code !== 0) throw new BuildFailure('compile', 'Build failed');
   return { mounts, outputDir };
 };

@@ -260,6 +260,19 @@ describe('F10 AC9: takedown during a build', () => {
   });
 });
 
+describe('F12: a build starved of memory', () => {
+  it.each([
+    ['a lost Gradle daemon', fakeRun({ code: 1, log: 'FAILURE: Build failed with an exception.\nGradle build daemon disappeared unexpectedly (it may have been killed or may have crashed)' })],
+    ['an out-of-memory kill', fakeRun({ code: 137, log: 'Killed' })],
+  ])('retries %s as our own failure, outside the daily limit', async (_name, run) => {
+    const id = await setup(run);
+    await expect(processBuild(deps, id, attempt(0))).rejects.not.toBeInstanceOf(UnrecoverableError);
+    expect((await load(id))?.status).toBe('queued');
+    await expect(processBuild(deps, id, attempt(2))).rejects.toThrow('ran out of memory');
+    expect(await load(id)).toMatchObject({ status: 'failed', failureKind: 'infra', countsTowardLimit: false });
+  });
+});
+
 describe('F09 AC8: failure kinds', () => {
   it.each([
     ['timeout', fakeRun({ timedOut: true, code: null })],
