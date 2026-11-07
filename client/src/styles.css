@@ -768,6 +768,7 @@ textarea.mono {
 
 .launcher-name {
   max-width: 96px;
+  animation: name-in 0.35s ease-out;
   color: #fff;
   font-size: 0.78rem;
   text-align: center;
@@ -1102,12 +1103,37 @@ textarea.mono {
 
 .checker-form {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+.checker-form:focus-within {
+  outline: 3px solid var(--marigold);
+  outline-offset: 2px;
+}
+
+.bar-scheme {
+  color: var(--muted);
+  font-size: 1rem;
 }
 
 .checker-form input {
   flex: 1;
   min-width: 0;
+  padding: 10px 4px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 1.1rem;
+}
+
+.checker-form .button {
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .checker .check {
@@ -1139,40 +1165,42 @@ textarea.mono {
 .how,
 .features {
   display: grid;
-  gap: 16px;
+  gap: 0 40px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* The three steps read as one trace: what you type, what you choose, what you get. */
 .how {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  counter-reset: step;
+  gap: 24px;
+  position: relative;
 }
 
-.how li,
-.features li {
+.how li {
   display: grid;
   align-content: start;
   gap: 6px;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel);
+  padding-top: 18px;
+  border-top: 2px solid var(--ink);
 }
 
 .how li::before {
-  counter-increment: step;
-  content: counter(step);
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  margin-bottom: 6px;
-  border-radius: 50%;
-  background: var(--marigold);
+  content: attr(data-chip);
+  justify-self: start;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
   color: var(--ink);
-  font: 500 0.9rem var(--mono);
+  font: 500 0.85rem var(--mono);
+}
+
+.how li[data-apk]::before {
+  background: var(--marigold);
+  border-color: var(--marigold);
 }
 
 .how strong,
@@ -1187,7 +1215,24 @@ textarea.mono {
 }
 
 .features {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.features li {
+  display: grid;
+  gap: 4px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .how,
+  .features {
+    grid-template-columns: 1fr;
+  }
+  .checker-form {
+    padding-left: 14px;
+  }
 }
 
 .play {
@@ -1303,8 +1348,8 @@ textarea.mono {
 }
 
 @media (max-width: 520px) {
-  .checker-form {
-    flex-direction: column;
+  .checker-form .button {
+    padding-inline: 14px;
   }
 
   .topbar {
@@ -1313,5 +1358,18 @@ textarea.mono {
 
   .topbar-nav {
     gap: 10px 14px;
+  }
+}
+
+@keyframes name-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launcher-name {
+    animation: none;
   }
 }

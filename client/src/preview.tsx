@@ -85,7 +85,7 @@ export const PhonePreview = (props: PreviewProps) => {
         ) : (
           <span className="launcher-icon launcher-icon-empty" aria-hidden="true" />
         )}
-        <span className="launcher-name">{props.appName || 'App name'}</span>
+        <span className="launcher-name" key={props.appName || 'none'}>{props.appName || 'App name'}</span>
       </figcaption>
     </figure>
   );

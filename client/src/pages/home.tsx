@@ -58,6 +58,7 @@ const SiteChecker = ({ onChecked }: { onChecked: (url: string, check: UrlCheck) 
     <div className="checker">
       <form className="checker-form" onSubmit={submit}>
         <label htmlFor="site" className="visually-hidden">Your website’s address</label>
+        <span className="bar-scheme mono" aria-hidden="true">https://</span>
         <input
           id="site"
           type="text"
@@ -138,15 +139,15 @@ export const Home = () => {
       <section className="band" aria-labelledby="how">
         <h2 id="how">How it works</h2>
         <ol className="how">
-          <li>
+          <li data-chip="yourshop.com">
             <strong>Paste your site</strong>
             <span>We check it’s reachable, uses HTTPS and is set up for phones, and take its name, colour and icon if it has them.</span>
           </li>
-          <li>
+          <li data-chip="Your Shop">
             <strong>Make it yours</strong>
             <span>Choose the app’s name, icon, colour and how it behaves, with a live phone preview beside you.</span>
           </li>
-          <li>
+          <li data-chip="yourshop-1.0.apk" data-apk>
             <strong>Install the APK</strong>
             <span>We build and sign it in about five minutes. Download it, or scan a QR code to install it on your phone.</span>
           </li>
