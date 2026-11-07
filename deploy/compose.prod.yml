@@ -31,6 +31,7 @@ services:
       # Caddy is the only proxy, on this fixed network.
       TRUST_PROXY: 172.30.0.0/24
       SHOT_URL: http://shot:4000
+    dns: [1.1.1.1, 8.8.8.8]
     depends_on:
       mongo:
         condition: service_healthy
@@ -55,6 +56,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    # The host's own resolvers sometimes take 5 seconds to answer, which showed up as pictures that never finished.
+    dns: [1.1.1.1, 8.8.8.8]
     read_only: true
     tmpfs:
       - /tmp
