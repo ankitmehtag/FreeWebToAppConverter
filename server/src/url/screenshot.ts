@@ -12,7 +12,7 @@ const REFUSALS = new Set<string>(['invalid_url', 'blocked', 'unreachable', 'time
 
 /** Asks the screenshot service, which runs the browser away from the API's database and keys. */
 export const createShotClient =
-  (baseUrl: string, timeoutMs = 45_000): Screenshot =>
+  (baseUrl: string, timeoutMs = 50_000): Screenshot =>
   async (url) => {
     let response: Response;
     try {
