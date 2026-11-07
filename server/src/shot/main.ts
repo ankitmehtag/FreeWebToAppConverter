@@ -7,3 +7,7 @@ const fetchUrl = createFetcher({ maxBytes: 5 * 1024 * 1024, timeoutMs: 8000 });
 const port = Number(process.env.PORT ?? 4000);
 
 createShotService({ render: createRenderer({ fetchUrl }) }).listen(port, () => console.log(`Screenshot service on port ${port}`));
+
+// A hostile page or a failing connection must not take the service down for everyone else.
+process.on('uncaughtException', (error) => console.error('Uncaught', error.message));
+process.on('unhandledRejection', (reason) => console.error('Unhandled', String(reason)));

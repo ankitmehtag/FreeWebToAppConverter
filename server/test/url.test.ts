@@ -179,6 +179,26 @@ describe('fetching', () => {
     expect(requests[0]!.headers.host).toBe(`rebind.test:${port}`);
   });
 
+  it('connects over IPv4 when a host answers with IPv6 first, and every address still has to pass', async () => {
+    const fetchUrl = createFetcher({
+      resolve: async () => [
+        { address: '2606:4700:4700::1111', family: 6 },
+        { address: '127.0.0.1', family: 4 },
+      ],
+      isAllowedAddress: (ip) => ip === '127.0.0.1' || isPublicAddress(ip),
+      ports: [port],
+    });
+    expect((await fetchUrl(`http://dual.test:${port}/`)).body.toString()).toBe('ok');
+    const blocked = createFetcher({
+      resolve: async () => [
+        { address: '8.8.8.8', family: 4 },
+        { address: '::1', family: 6 },
+      ],
+      ports: [port],
+    });
+    expect(await failure(blocked(`http://dual.test:${port}/`))).toBe('blocked');
+  });
+
   it('AC7: refuses a redirect to the metadata address at that hop', async () => {
     handler = (_req, res) => res.writeHead(302, { location: 'http://169.254.169.254/latest/meta-data/' }).end();
     const { fetchUrl } = localFetcher({ 'site.test': ['127.0.0.1'] });

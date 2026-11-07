@@ -49,7 +49,8 @@ const pinAddress = async (url: URL, resolve: NonNullable<FetcherOptions['resolve
   const addresses = ipaddr.isValid(host)
     ? [{ address: host, family: host.includes(':') ? 6 : 4 }]
     : await resolve(host).catch(() => []);
-  const [pinned] = addresses;
+  // IPv4 first: many hosts have no IPv6 route, and a site's IPv6 record would then make it unreachable.
+  const [pinned] = [...addresses].sort((a, b) => (a.family === 4 ? 0 : 1) - (b.family === 4 ? 0 : 1));
   if (!pinned) throw new FetchFailure('unreachable');
   if (!addresses.every(({ address }) => isAllowed(address))) throw new FetchFailure('blocked');
   return pinned;
@@ -94,6 +95,8 @@ const send = (url: URL, pinned: ResolvedAddress, signal: AbortSignal, maxBytes: 
       },
     );
     request.on('error', () => reject(new FetchFailure('unreachable')));
+    // A connection that fails after the request is done must not become an uncaught error.
+    request.on('socket', (socket) => socket.on('error', () => undefined));
     request.end();
   });
 
