@@ -35,6 +35,10 @@
           "type": "string",
           "pattern": "^#[0-9a-fA-F]{6}$"
         },
+        "splashColor": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
         "orientation": {
           "type": "string",
           "enum": [

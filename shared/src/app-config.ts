@@ -36,6 +36,8 @@ export const appConfigSchema = z.strictObject({
   internalHosts: z.array(z.string().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/)).min(1),
   ui: z.strictObject({
     statusBarColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    /** The splash screen's background. Falls back to the status bar colour. */
+    splashColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
     orientation: z.enum(['unspecified', 'portrait', 'landscape']),
     zoom: z.boolean(),
     progressBar: z.boolean(),

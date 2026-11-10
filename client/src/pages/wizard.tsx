@@ -441,6 +441,25 @@ export const Wizard = () => {
                   />
                 </div>
               </Field>
+              <Field label="Splash colour (optional)" error={errors['ui.splashColor']} hint="The background while the app opens. Leave empty to use the colour above.">
+                <div className="colour-row">
+                  <input
+                    type="color"
+                    value={draft.ui?.splashColor ?? draft.ui?.statusBarColor ?? '#0e7c66'}
+                    onChange={(event) => setUi({ splashColor: event.target.value.toUpperCase() })}
+                    aria-label="Pick a splash colour"
+                  />
+                  <input
+                    type="text"
+                    className="mono"
+                    placeholder="Same as above"
+                    value={draft.ui?.splashColor ?? ''}
+                    aria-invalid={Boolean(errors['ui.splashColor'])}
+                    onChange={(event) => setUi({ splashColor: event.target.value.trim().toUpperCase() || undefined })}
+                    aria-label="Splash colour as hex"
+                  />
+                </div>
+              </Field>
               {offered?.statusBarColor && offered.statusBarColor !== draft.ui?.statusBarColor && (
                 <Offer onAccept={() => setUi({ statusBarColor: offered.statusBarColor })}>
                   Colour on your site: <span className="swatch" style={{ background: offered.statusBarColor }} /> <span className="mono">{offered.statusBarColor}</span>

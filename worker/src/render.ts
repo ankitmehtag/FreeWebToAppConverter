@@ -42,7 +42,7 @@ export const render = async (input: RenderInput) => {
     await mkdir(join(dir, 'assets'));
     await mkdir(join(dir, 'res', 'values'));
     await writeFile(join(dir, 'assets', 'app_config.json'), JSON.stringify(config, null, 2));
-    await writeFile(join(dir, 'res', 'values', 'generated.xml'), generatedXml(config.appName, color, background));
+    await writeFile(join(dir, 'res', 'values', 'generated.xml'), generatedXml(config.appName, config.ui.splashColor ?? color, background));
   } catch (error) {
     await rm(dir, { recursive: true, force: true });
     throw error;

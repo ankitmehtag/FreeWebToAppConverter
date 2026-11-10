@@ -102,6 +102,14 @@ describe('R6: colours', () => {
     );
   });
 
+  it('uses splashColor for the splash when it is set', async () => {
+    const custom = { ...config, ui: { ...config.ui, statusBarColor: '#B91C1C', splashColor: '#112233' } };
+    const { dir } = await render(await input({ config: custom }));
+    expect(readFileSync(join(dir, 'res/values/generated.xml'), 'utf8')).toContain(
+      '<color name="splash_background">#112233</color>',
+    );
+  });
+
   it('never creates a file named from user input', async () => {
     const { dir } = await render(await input());
     expect(existsSync(join(dir, 'com.sitetoapk.example'))).toBe(false);
