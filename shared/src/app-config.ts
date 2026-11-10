@@ -37,6 +37,8 @@ export const appConfigSchema = z.strictObject({
   ui: z.strictObject({
     statusBarColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     /** The splash screen's background. Falls back to the status bar colour. */
+    /** Pushes notifications to the app. Needs a build made after it was turned on. */
+    push: z.boolean().optional(),
     splashColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
     orientation: z.enum(['unspecified', 'portrait', 'landscape']),
     zoom: z.boolean(),

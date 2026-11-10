@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.browser)
     implementation(libs.core.ktx)
     implementation(libs.core.splashscreen)
+    implementation(libs.firebase.messaging)
     implementation(libs.swiperefresh)
     implementation(libs.webkit)
     testImplementation(libs.junit)

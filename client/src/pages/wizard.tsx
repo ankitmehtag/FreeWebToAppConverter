@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { DEFAULT_BEHAVIOUR, draftSchema, permissionsFor, suggestPackageName, toAppConfig, type Draft } from '@sitetoapk/shared';
 import { api, ApiError, type FieldErrors } from '../api';
 import { BuildPanel } from '../build-panel';
+import { PushPanel } from '../push-panel';
 import { PhonePreview } from '../preview';
 import { failureText, normaliseUrl, passes, type UrlCheck } from '../url-check';
 import { useSession } from '../session';
@@ -473,6 +474,7 @@ export const Wizard = () => {
               <Toggle label="Loading bar" hint="A thin bar at the top while a page loads." checked={ui.progressBar} onChange={(value) => setUi({ progressBar: value })} />
               <Toggle label="Pull to refresh" hint="Pulling down at the top reloads the page." checked={ui.pullToRefresh} onChange={(value) => setUi({ pullToRefresh: value })} />
               <Toggle label="Ask before closing" hint="Back on the first page asks before leaving the app." checked={ui.exitDialog} onChange={(value) => setUi({ exitDialog: value })} />
+              <Toggle label="Push notifications" hint="Send messages to your users’ phones. Needs a new build after you turn it on." checked={Boolean(ui.push)} onChange={(value) => setUi({ push: value })} />
               <Toggle label="Pinch to zoom" hint="Let people zoom pages with two fingers." checked={ui.zoom} onChange={(value) => setUi({ zoom: value })} />
 
               <Field label="Screen orientation">
@@ -507,7 +509,12 @@ export const Wizard = () => {
           {step === 'review' && (
             <div className="stack">
               {app.ready && config ? (
-                !app.takenDown && <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} />
+                !app.takenDown && (
+                  <>
+                    <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} />
+                    {ui.push && app.locked && <PushPanel appId={id} />}
+                  </>
+                )
               ) : (
                 <div className="check check-bad" role="status"><p>Still needed: {missingItems.join(', ') || 'valid values in the highlighted fields'}.</p></div>
               )}

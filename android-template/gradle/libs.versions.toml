@@ -9,6 +9,7 @@ swipeRefresh = "1.1.0"
 webkit = "1.12.1"
 junit = "4.13.2"
 orgJson = "20240303"
+firebaseMessaging = "24.1.0"
 
 [libraries]
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
@@ -17,6 +18,7 @@ core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
 swiperefresh = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swipeRefresh" }
 webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
 junit = { module = "junit:junit", version.ref = "junit" }
 org-json = { module = "org.json:json", version.ref = "orgJson" }
 

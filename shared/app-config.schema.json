@@ -35,6 +35,9 @@
           "type": "string",
           "pattern": "^#[0-9a-fA-F]{6}$"
         },
+        "push": {
+          "type": "boolean"
+        },
         "splashColor": {
           "type": "string",
           "pattern": "^#[0-9a-fA-F]{6}$"

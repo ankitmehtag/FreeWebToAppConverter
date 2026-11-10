@@ -11,7 +11,7 @@ import { requireCsrf, requireSession } from '../auth/session';
 import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } from '../abuse/unsafe';
 import type { FetchUrl } from '../url/fetcher';
 import { iconKey } from './icons';
-import { MAX_APPS_PER_USER, type Apps } from './index';
+import { MAX_APPS_PER_USER, PUSH_PER_DAY, type Apps } from './index';
 import { prefill } from './prefill';
 import type { Builds } from '../builds';
 import { buildView, startBuild } from '../builds/start';
@@ -81,7 +81,9 @@ const unsafeFields = async (unsafe: UnsafeChecker | undefined, draft: Draft, bef
   return null;
 };
 
-export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUrl, builds?: Builds, unsafe?: UnsafeChecker) => {
+const pushRequest = z.strictObject({ title: z.string().trim().min(1).max(60), body: z.string().trim().min(1).max(200) });
+
+export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, fetchUrl?: FetchUrl, builds?: Builds, unsafe?: UnsafeChecker) => {
   const router = Router();
   const session = requireSession(auth);
   const csrf = requireCsrf(auth);
@@ -150,6 +152,25 @@ export const appsRouter = (auth: Auth, { apps, icons }: Apps, fetchUrl?: FetchUr
     if (!app || !builds) return notFound(res);
     const list = await builds.builds.find({ appId: app._id, ownerId: ownerOf(res) }).sort({ createdAt: -1 }).limit(10).toArray();
     res.json(list.map(buildView));
+  });
+
+  router.post('/:id/push', csrf, limitRoute(auth, 'push'), async (req, res) => {
+    const filter = appFilter(res, req.params.id);
+    const app = filter && (await apps.findOne(filter));
+    if (!app) return notFound(res);
+    if (app.takenDown) return takenDown(res, app);
+    if (!sendPush) return res.status(503).json({ error: 'Push notifications are not available right now' });
+    if (!app.draft?.ui?.push || !app.lockedAt) {
+      return res.status(409).json({ error: 'Turn on push notifications and build the app first' });
+    }
+    const message = pushRequest.parse(req.body);
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    if ((await pushes.countDocuments({ appId: app._id, at: { $gte: since } })) >= PUSH_PER_DAY) {
+      return res.status(429).json({ error: `You can send ${PUSH_PER_DAY} notifications a day per app` });
+    }
+    await pushes.insertOne({ appId: app._id, at: new Date() });
+    await sendPush(String(app._id), message);
+    res.status(204).end();
   });
 
   router.put('/:id', csrf, async (req, res) => {

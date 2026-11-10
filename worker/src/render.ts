@@ -13,6 +13,10 @@ const renderInputSchema = z.object({
   versionCode: z.number().int().min(1).max(2100000000),
   versionName: z.string().regex(/^\d+(\.\d+){0,3}$/),
   parentDir: z.string().optional(),
+  /** Present when the app has push notifications turned on. */
+  firebase: z
+    .object({ apiKey: z.string(), appId: z.string(), projectId: z.string(), senderId: z.string(), topic: z.string() })
+    .optional(),
 });
 
 export type RenderInput = z.input<typeof renderInputSchema>;
@@ -31,7 +35,7 @@ const generatedXml = (appName: string, splash: string, iconBackground: string) =
  * build only through the files written here, each escaped for its format.
  */
 export const render = async (input: RenderInput) => {
-  const { config, iconPath, plan, versionCode, versionName, parentDir } = renderInputSchema.parse(input);
+  const { config, iconPath, plan, versionCode, versionName, parentDir, firebase } = renderInputSchema.parse(input);
   const icon = await readIcon(iconPath);
 
   const dir = await mkdtemp(join(parentDir ?? tmpdir(), 'sitetoapk-render-'));
@@ -42,6 +46,7 @@ export const render = async (input: RenderInput) => {
     await mkdir(join(dir, 'assets'));
     await mkdir(join(dir, 'res', 'values'));
     await writeFile(join(dir, 'assets', 'app_config.json'), JSON.stringify(config, null, 2));
+    if (firebase) await writeFile(join(dir, 'assets', 'firebase.json'), JSON.stringify(firebase));
     await writeFile(join(dir, 'res', 'values', 'generated.xml'), generatedXml(config.appName, config.ui.splashColor ?? color, background));
   } catch (error) {
     await rm(dir, { recursive: true, force: true });

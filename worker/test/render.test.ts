@@ -115,3 +115,13 @@ describe('R6: colours', () => {
     expect(existsSync(join(dir, 'com.sitetoapk.example'))).toBe(false);
   });
 });
+
+describe('push notifications', () => {
+  it('writes firebase.json only when the app has push', async () => {
+    const firebase = { apiKey: 'k', appId: '1:2:android:3', projectId: 'p', senderId: '2', topic: 'app-a1' };
+    const withPush = await render(await input({ firebase }));
+    expect(JSON.parse(readFileSync(join(withPush.dir, 'assets/firebase.json'), 'utf8'))).toEqual(firebase);
+    const without = await render(await input());
+    expect(existsSync(join(without.dir, 'assets/firebase.json'))).toBe(false);
+  });
+});

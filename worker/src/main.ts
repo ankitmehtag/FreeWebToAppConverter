@@ -7,6 +7,7 @@ import { createLogSink } from './logs';
 import { assertImageMatches } from './image';
 import { startWorker } from './queue';
 import { createNotifier } from './notify';
+import { serviceAccountFromEnv } from '@sitetoapk/shared/firebase';
 import { reap } from './reaper';
 import { requireEnv, storageFromEnv } from './env';
 
@@ -40,6 +41,7 @@ const worker = startWorker(
     apps,
     logs,
     notify,
+    firebase: serviceAccountFromEnv(),
     run: runContainer,
     image,
     timeoutMs,

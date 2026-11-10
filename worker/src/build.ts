@@ -8,6 +8,7 @@ import { containerName, removeContainer, type BuildMounts, type runContainer } f
 import { environmentSecrets, redactor, type LogSink } from './logs';
 import { render } from './render';
 import { artifactKey, FREE_RETENTION_DAYS, type Storage } from './storage';
+import { ensureFirebaseApp, topicFor, type ServiceAccount } from '@sitetoapk/shared/firebase';
 import type { Notifier } from './notify';
 import { checkBuild } from './verify';
 
@@ -35,6 +36,8 @@ export type BuildDeps = {
   logs?: LogSink;
   /** Emails the owner when the build ends. Off when no mail key is set. */
   notify?: Notifier;
+  /** Registers apps with push notifications. Without it, builds that ask for push fail. */
+  firebase?: ServiceAccount;
 };
 
 const VERIFY_TIMEOUT_MS = 120000;
@@ -52,6 +55,13 @@ class BuildFailure extends Error {
     super(message);
   }
 }
+
+/** Registers the app with Firebase and returns what it needs to receive notifications. */
+const firebaseFor = async (deps: BuildDeps, build: BuildRequest) => {
+  if (!deps.firebase || !build.appId) throw new BuildFailure('input', 'Push notifications are not available right now');
+  const client = await ensureFirebaseApp(deps.firebase, build.config.packageName);
+  return { ...client, topic: topicFor(String(build.appId)) };
+};
 
 /** The icon for this build: the website's copy in storage, or the build-app script's local file. */
 const iconFor = async (deps: BuildDeps, build: BuildRequest, workDir: string) => {
@@ -82,7 +92,8 @@ const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, wo
   await prepareSecrets(secretsDir, deps.signing);
 
   const iconPath = await iconFor(deps, build, workDir);
-  const { dir, gradleArgs } = await render({ ...build, iconPath, parentDir: workDir }).catch((error: Error) => {
+  const firebase = build.config.ui.push ? await firebaseFor(deps, build) : undefined;
+  const { dir, gradleArgs } = await render({ ...build, iconPath, firebase, parentDir: workDir }).catch((error: Error) => {
     throw new BuildFailure('input', `Invalid input: ${error.message}`);
   });
   await chmod(workDir, 0o755);

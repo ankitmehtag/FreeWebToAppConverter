@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./icon": "./src/icon.ts",
     "./s3": "./src/s3.ts",
+    "./firebase": "./src/firebase.ts",
     "./builds": "./src/builds.ts"
   },
   "scripts": {

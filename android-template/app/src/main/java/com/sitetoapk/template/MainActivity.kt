@@ -46,6 +46,8 @@ class MainActivity : AppCompatActivity() {
     private var pendingUpload: ValueCallback<Array<Uri>>? = null
     private var firstPageShown = false
 
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
     private val filePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         pendingUpload?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data))
         pendingUpload = null
@@ -86,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         webView = createWebView()
         webContainer.addView(webView)
         load(config.startUrl)
+        Push.start(this, notificationPermission)
     }
 
     override fun onDestroy() {

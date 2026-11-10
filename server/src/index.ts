@@ -9,6 +9,7 @@ import { prepareBuilds } from './builds';
 import { prepareReports } from './abuse/reports';
 import { createUnsafeChecker, webRiskLookup } from './abuse/unsafe';
 import { prepareAuth } from './auth';
+import { sendToApp, serviceAccountFromEnv } from '@sitetoapk/shared/firebase';
 import { resendMailer, smtpMailer } from './auth/mailer';
 import { createFetcher } from './url/fetcher';
 import { createShotClient } from './url/screenshot';
@@ -82,6 +83,10 @@ const auth = await prepareAuth({
   },
 });
 
+// Off until a Firebase key is set. Notifications go out through the owner's project.
+const pushAccount = serviceAccountFromEnv();
+const pushSender = () => (pushAccount ? (appId: string, message: { title: string; body: string }) => sendToApp(pushAccount, appId, message) : undefined);
+
 const app = createApp({
   checkMongo: async () => {
     await mongo.db().command({ ping: 1 });
@@ -97,7 +102,7 @@ const app = createApp({
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
   unsafe: process.env.WEB_RISK_API_KEY ? createUnsafeChecker(redis, webRiskLookup(process.env.WEB_RISK_API_KEY)) : undefined,
-  apps: await prepareApps(mongo.db(), storage),
+  apps: await prepareApps(mongo.db(), storage, pushSender()),
   builds: await prepareBuilds({
     db: mongo.db(),
     redis,
