@@ -8,6 +8,7 @@ import { containerName, removeContainer, type BuildMounts, type runContainer } f
 import { environmentSecrets, redactor, type LogSink } from './logs';
 import { render } from './render';
 import { artifactKey, FREE_RETENTION_DAYS, type Storage } from './storage';
+import type { Notifier } from './notify';
 import { checkBuild } from './verify';
 
 export type Run = typeof runContainer;
@@ -32,6 +33,8 @@ export type BuildDeps = {
   apps?: Collection;
   /** Streams lines and statuses to viewers, and keeps the log once the build ends. */
   logs?: LogSink;
+  /** Emails the owner when the build ends. Off when no mail key is set. */
+  notify?: Notifier;
 };
 
 const VERIFY_TIMEOUT_MS = 120000;
@@ -146,9 +149,11 @@ export const processBuild = async (
     if (logs) sent = sent.then(() => logs.line(buildId, text)).catch(() => undefined);
   };
   let ended = false;
+  let outcome: 'success' | 'failed' | undefined;
   const move = async (status: string, fields: Record<string, unknown> = {}) => {
     await setStatus(deps.builds, buildId, status, fields);
     ended = ['success', 'failed'].includes(status);
+    if (status === 'success' || status === 'failed') outcome = status;
     await logs?.status(buildId, status, fields.failureKind as FailureKind | undefined).catch(() => undefined);
   };
 
@@ -194,5 +199,6 @@ export const processBuild = async (
     await rm(workDir, { recursive: true, force: true });
     await sent;
     if (ended) await logs?.finish(buildId).catch(() => undefined);
+    if (outcome) await deps.notify?.(build, outcome);
   }
 };

@@ -6,6 +6,7 @@ import { removeAllBuildContainers, runContainer } from './container';
 import { createLogSink } from './logs';
 import { assertImageMatches } from './image';
 import { startWorker } from './queue';
+import { createNotifier } from './notify';
 import { reap } from './reaper';
 import { requireEnv, storageFromEnv } from './env';
 
@@ -22,6 +23,11 @@ const builds = mongo.db().collection('builds');
 const apps = mongo.db().collection('apps');
 const logs = createLogSink(new Redis(requireEnv('REDIS_URL')), mongo.db().collection('buildLogs'));
 
+const mailKey = process.env.RESEND_API_KEY;
+const notify = mailKey
+  ? createNotifier({ users: mongo.db().collection('users'), apiKey: mailKey, from: requireEnv('MAIL_FROM'), appUrl: requireEnv('APP_URL') })
+  : undefined;
+
 const reaperDeps = { builds, timeoutMs, workRoot };
 const leftovers = await removeAllBuildContainers();
 if (leftovers) console.log(`Removed ${leftovers} build container(s) left by a previous worker`);
@@ -33,6 +39,7 @@ const worker = startWorker(
     builds,
     apps,
     logs,
+    notify,
     run: runContainer,
     image,
     timeoutMs,
