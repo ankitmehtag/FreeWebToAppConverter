@@ -127,7 +127,7 @@ export const Privacy = () => (
     <ul>
       <li><strong>Cloudflare (R2):</strong> stores icons and APK files.</li>
       <li><strong>Resend:</strong> sends account emails, such as confirmation and password reset.</li>
-      <li><strong>Google:</strong> signs you in if you choose Google sign-in, and, when we switch it on, checks app websites against its list of unsafe sites.</li>
+      <li><strong>Google:</strong> signs you in if you choose Google sign-in, delivers push notifications (Firebase Cloud Messaging) for apps that turn them on, and, when we switch it on, checks app websites against its list of unsafe sites.</li>
       <li><strong>Our database and hosting providers:</strong> hold your account and app records and run the service.</li>
     </ul>
     <p>Some of these providers process data outside India.</p>
@@ -135,6 +135,10 @@ export const Privacy = () => (
     <h2>The website in your app</h2>
     <p>
       Your app opens your website, which has its own privacy practices. We don’t see what people do inside your app.
+    </p>
+    <p>
+      If you turn on push notifications, people who install your app are asked for permission, and Google’s Firebase
+      service delivers your messages to their phones. We keep no list of their devices and send only what you write.
     </p>
 
     <h2>Your choices</h2>
