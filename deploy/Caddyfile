@@ -5,7 +5,7 @@
 
 	# Caddy sets X-Forwarded-For from the real connection and drops any the visitor sent,
 	# so the API (TRUST_PROXY) only ever believes Caddy.
-	@api path /auth /auth/* /apps /apps/* /url /url/* /builds /builds/* /reports /reports/* /health
+	@api path /auth /auth/* /apps /apps/* /url /url/* /builds /builds/* /reports /reports/* /keystores /keystores/* /health
 	handle @api {
 		reverse_proxy api:3000 {
 			# Live build logs are Server-Sent Events, so nothing may be held back.
