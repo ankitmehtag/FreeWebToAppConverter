@@ -10,7 +10,8 @@
     "takedown": "tsx scripts/takedown.ts",
     "set-plan": "tsx scripts/set-plan.ts",
     "refund-order": "tsx scripts/refund-order.ts",
-    "create-coupon": "tsx scripts/create-coupon.ts"
+    "create-coupon": "tsx scripts/create-coupon.ts",
+    "scan-secrets": "tsx scripts/scan-secrets.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1163.0",

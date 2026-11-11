@@ -51,6 +51,14 @@ export const Terms = () => (
       watermark. We may change these limits, and we’ll show the current ones on the <Link to="/pricing">pricing page</Link>.
     </p>
 
+    <h2>Premium and refunds</h2>
+    <p>
+      Premium is bought once for one app. You can ask for a full refund within 7 days of payment, as long as you haven’t
+      downloaded the signing key or the app bundle for that app. After a refund the app goes back to the Free plan, its signing
+      key can no longer be downloaded, and builds you already made stay available until they expire. To ask, write to the
+      address on the contact page. Receipts are plain receipts, not tax invoices.
+    </p>
+
     <h2>Google Play and other stores</h2>
     <p>
       Whether a store accepts your app is up to that store. We don’t promise that any app will be accepted, stay listed, or meet a

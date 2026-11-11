@@ -64,6 +64,25 @@ describe('F11 AC1: public pages', () => {
   });
 });
 
+describe('F14 R16: the refund window is stated', () => {
+  const REFUND = /full refund within 7 days of payment/i;
+
+  it('says so on the Pricing page, with the condition', async () => {
+    open('/pricing');
+    await screen.findByRole('heading', { name: 'Pricing' });
+    expect(screen.getByText(REFUND)).toBeInTheDocument();
+    expect(screen.getByText(/signing key or the app bundle/i)).toBeInTheDocument();
+  });
+
+  it('says so in the Terms, with the condition and how to ask', async () => {
+    open('/terms');
+    await screen.findByRole('heading', { name: 'Terms of Service' });
+    expect(screen.getByRole('heading', { name: 'Premium and refunds' })).toBeInTheDocument();
+    expect(screen.getByText(REFUND)).toBeInTheDocument();
+    expect(screen.getByText(/signing key or the app bundle/i)).toBeInTheDocument();
+  });
+});
+
 describe('F11 AC2: honest plans and the Google Play warning', () => {
   it('states the Free plan’s real limits and marks Premium as coming soon', async () => {
     open('/pricing');

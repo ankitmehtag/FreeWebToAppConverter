@@ -41,6 +41,9 @@ export const Pricing = () => {
             <li>Your own signing key, kept for your app’s updates</li>
             <li>No watermark</li>
           </ul>
+          <p className="field-hint">
+            A full refund within 7 days of payment, as long as you haven’t downloaded the signing key or the app bundle.
+          </p>
           
         </section>
       </div>

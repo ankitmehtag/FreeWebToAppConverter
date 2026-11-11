@@ -27,9 +27,9 @@
   - Tests first: AC11, AC12
 - [x] T9: Receipts with sequential numbers, emailed through Resend and shown in the account, plain receipts while there is no GST (R20, R21)
   - Tests first: AC13
-- [ ] T10: Worker reads the app's plan flag for the watermark (R24)
+- [x] T10: Worker reads the app's plan flag for the watermark (R24)
   - Tests first: AC15
-- [ ] T11: Secret and card-data scan of the repo, bundle, logs and image layers, and the refund window text in Terms and on Pricing (R16, R22, R23)
+- [x] T11: Secret and card-data scan of the repo, bundle, logs and image layers, and the refund window text in Terms and on Pricing (R16, R22, R23)
   - Tests first: AC14
 - [ ] T12: Stripe provider behind the same interface, for USD, or INR-only if Stripe is not available to the seller (R6, Q3)
   - Tests first: AC1, AC4, AC5
