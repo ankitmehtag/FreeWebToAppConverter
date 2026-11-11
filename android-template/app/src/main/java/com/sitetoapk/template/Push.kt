@@ -16,7 +16,8 @@ import java.io.IOException
 
 /** Push notifications. Does nothing unless the build wrote `firebase.json`. */
 object Push {
-    const val CHANNEL_ID = "updates"
+    // A channel's importance is fixed once a phone has it, so the id changed when it went from default to high.
+    const val CHANNEL_ID = "alerts"
 
     /** Starts Firebase, asks for permission on Android 13+, and joins this app's topic. */
     fun start(context: Context, askPermission: ActivityResultLauncher<String>) {
@@ -49,7 +50,7 @@ object Push {
     fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT < 26) return
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Updates", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Updates", NotificationManager.IMPORTANCE_HIGH))
     }
 
     private fun read(context: Context): JSONObject? = try {
