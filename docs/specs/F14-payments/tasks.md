@@ -23,7 +23,7 @@
   - Tests first: AC9
 - [x] T7: Refunds, failed payments and disputes, and the owner's refund script (R14, R15, R16)
   - Tests first: AC10
-- [ ] T8: Coupons: model, atomic redemption, 100 percent path with no provider call (R17, R18, R19)
+- [x] T8: Coupons: model, atomic redemption, 100 percent path with no provider call (R17, R18, R19)
   - Tests first: AC11, AC12
 - [ ] T9: Receipts with sequential numbers, emailed through Resend and shown in the account, plain receipts while there is no GST (R20, R21)
   - Tests first: AC13

@@ -6,7 +6,9 @@ import { allowOrigin } from '../auth/routes';
 import { requireCsrf, requireSession } from '../auth/session';
 import { planOf } from '../apps/plan';
 import type { prepareOrders } from './orders';
+import { discounted, findUsable, normalizeCode, redeem, releaseCoupon } from './coupons';
 import { isCurrency, premiumPrice, type Currency } from './prices';
+import { markPaid } from './unlock';
 import type { PaymentProvider, ProviderName } from './provider';
 
 export type Payments = Awaited<ReturnType<typeof prepareOrders>> & {
@@ -23,7 +25,7 @@ const PROVIDER_FOR: Record<Currency, ProviderName> = { INR: 'razorpay', USD: 'st
 const CHECKOUTS_PER_HOUR = 10;
 
 export const paymentsRouter = (auth: Auth, payments: Payments) => {
-  const { orders, apps, users, providers } = payments;
+  const { orders, apps, users, providers, coupons } = payments;
   const router = Router();
   const csrf = requireCsrf(auth);
   router.use(allowOrigin(auth), cookieParser(), express.json({ limit: '1kb' }));
@@ -44,6 +46,21 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     status: order.status,
     currency: order.currency,
     amount: order.amount,
+  });
+
+  /** What a coupon would take off, so the page can show the price before the buyer commits. */
+  router.post('/coupon', csrf, async (req, res) => {
+    const userId = userOf(res);
+    const key = `rate:coupon:${userId}`;
+    const count = await auth.redis.incr(key);
+    if (count === 1) await auth.redis.pexpire(key, 60 * 60 * 1000);
+    if (count > 30) return res.status(429).json({ error: 'Too many attempts, try again later' });
+    const currency = req.body?.currency ?? 'INR';
+    const coupon = isCurrency(currency) ? await findUsable(coupons, normalizeCode(req.body?.code), 'premium') : null;
+    const amount = coupon && isCurrency(currency) ? discounted(coupon, premiumPrice(currency), currency) : undefined;
+    // One answer for a wrong, expired, used-up and inapplicable code, so codes cannot be probed.
+    if (amount === undefined || !isCurrency(currency)) return res.status(404).json({ error: 'That code doesn’t work' });
+    res.json({ code: coupon!.code, currency, amount });
   });
 
   router.post('/checkout', csrf, async (req, res) => {
@@ -71,9 +88,20 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     };
     if (open) return reuse(open);
 
+    // A coupon is read first to price the order, then taken atomically once the order holds the app.
+    const code = normalizeCode(req.body?.couponCode);
+    const coupon = code ? await findUsable(coupons, code, 'premium') : null;
+    const listPrice = premiumPrice(currency);
+    const amount = coupon ? discounted(coupon, listPrice, currency) : listPrice;
+    if (code && (!coupon || amount === undefined)) return res.status(400).json({ error: 'That code doesn’t work' });
+    const price = amount as number;
+    const free = price === 0;
+    // Providers refuse tiny charges, so a coupon may take a price to nothing or leave a real one.
+    if (!free && price < 100) return res.status(400).json({ error: 'That code doesn’t work' });
+
     const providerName = PROVIDER_FOR[currency];
     const provider = providers[providerName];
-    if (!provider) return res.status(400).json({ error: `Payment in ${currency} is not available yet` });
+    if (!free && !provider) return res.status(400).json({ error: `Payment in ${currency} is not available yet` });
 
     const user = await users.findOne({ _id: userId });
     const order = {
@@ -81,11 +109,12 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
       appId,
       userId,
       plan: 'premium',
-      provider: providerName,
+      provider: free ? 'coupon' : providerName,
       currency,
-      amount: premiumPrice(currency),
+      amount: price,
       status: 'created',
       createdAt: new Date(),
+      ...(coupon ? { couponCode: code, couponId: coupon._id, listAmount: listPrice } : {}),
     };
     try {
       await orders.insertOne(order);
@@ -96,8 +125,22 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
       return winner ? reuse(winner) : res.status(409).json({ error: 'Checkout is starting, try again in a moment' });
     }
 
+    if (coupon) {
+      if (!(await redeem(coupons, coupon, userId))) {
+        await orders.updateOne({ _id: order._id }, { $set: { status: 'failed', failedAt: new Date() } });
+        return res.status(409).json({ error: 'That code has been used up' });
+      }
+      await orders.updateOne({ _id: order._id }, { $set: { couponRedeemed: true } });
+    }
+
+    if (free) {
+      // Through the same unlock as a payment, so it shows in the records, with no provider call.
+      await markPaid(payments, order);
+      return res.status(201).json({ ...view({ ...order, status: 'paid' }), checkoutUrl: null });
+    }
+
     try {
-      const checkout = await provider.createCheckout({
+      const checkout = await provider!.createCheckout({
         orderId: String(order._id),
         amount: order.amount,
         currency,
@@ -108,12 +151,14 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
       await orders.updateOne({ _id: order._id }, { $set: { providerOrderId: checkout.providerOrderId, checkoutUrl: checkout.checkoutUrl } });
       res.status(201).json({ ...view(order), checkoutUrl: checkout.checkoutUrl });
     } catch (error) {
-      // Free the app for another try. The message stays out of the reply, as it can carry request details.
+      // Free the app for another try, and give the coupon use back. The message stays out of the reply, as it can carry request details.
       await orders.updateOne({ _id: order._id }, { $set: { status: 'failed', failedAt: new Date() } });
+      await releaseCoupon(payments, { ...order, couponRedeemed: true });
       console.error('Checkout failed', error instanceof Error ? error.message : 'unknown');
       res.status(502).json({ error: 'The payment provider is not answering, try again soon' });
     }
   });
+
 
   /** The real status, read from our records, not from the redirect (R7). */
   router.get('/orders/:id', async (req, res) => {

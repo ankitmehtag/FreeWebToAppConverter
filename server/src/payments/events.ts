@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { setPlan } from '../apps/plan';
+import { releaseCoupon } from './coupons';
 import { closeOrder } from './refunds';
+import { markPaid } from './unlock';
 import type { Payments } from './routes';
 import type { ProviderName, WebhookEvent } from './provider';
 
@@ -13,7 +14,7 @@ export const hashBody = (rawBody: Buffer) => createHash('sha256').update(rawBody
  * and one that was cut off before it finished runs again. Every step is safe to run twice.
  */
 export const applyEvent = async (payments: Payments, provider: ProviderName, event: WebhookEvent, bodyHash: string): Promise<Outcome> => {
-  const { providerEvents, orders, apps } = payments;
+  const { providerEvents, orders } = payments;
   try {
     await providerEvents.insertOne({ provider, eventId: event.eventId, bodyHash, type: event.type, paymentId: event.paymentId, amount: event.amount, receivedAt: new Date() });
   } catch (error) {
@@ -44,7 +45,11 @@ export const applyEvent = async (payments: Payments, provider: ProviderName, eve
   if (event.type === 'failed') {
     // A payment that failed for an order still waiting: the app can be bought again.
     if (event.providerOrderId) {
-      await orders.updateOne({ provider, providerOrderId: event.providerOrderId, status: { $in: ['created', 'pending'] } }, { $set: { status: 'failed', failedAt: new Date() } });
+      const failed = await orders.findOneAndUpdate(
+        { provider, providerOrderId: event.providerOrderId, status: { $in: ['created', 'pending'] } },
+        { $set: { status: 'failed', failedAt: new Date() } },
+      );
+      if (failed) await releaseCoupon(payments, failed);
     }
     return done('applied');
   }
@@ -71,11 +76,6 @@ export const applyEvent = async (payments: Payments, provider: ProviderName, eve
     return done('applied');
   }
 
-  await orders.updateOne(
-    { _id: order._id, status: { $in: ['created', 'pending'] } },
-    { $set: { status: 'paid', paidAt: new Date(), ...(event.paymentId ? { paymentId: event.paymentId } : {}) } },
-  );
-  const current = await orders.findOne({ _id: order._id });
-  if (current?.status === 'paid') await setPlan(apps, order.appId, 'premium');
+  await markPaid(payments, order, event.paymentId);
   return done('applied');
 };

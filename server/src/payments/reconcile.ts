@@ -1,5 +1,7 @@
 import { setPlan } from '../apps/plan';
+import { releaseCoupon } from './coupons';
 import { applyEvent } from './events';
+import { markPaid } from './unlock';
 import type { Payments } from './routes';
 
 /** An order is left alone this long, so the usual webhook gets there first. */
@@ -17,9 +19,15 @@ export const reconcile = async (payments: Payments, now = new Date()) => {
   for await (const order of orders.find({ status: { $in: ['created', 'pending'] }, createdAt: { $lte: cutoff } })) {
     result.checked += 1;
     try {
+      if (order.provider === 'coupon' && order.couponRedeemed) {
+        // A free order whose coupon was taken but whose unlock was cut off.
+        if (await markPaid(payments, order)) result.paid += 1;
+        continue;
+      }
       if (typeof order.providerOrderId !== 'string') {
         // The provider call never finished, so there is nothing to pay.
         await orders.updateOne({ _id: order._id, status: order.status }, { $set: { status: 'failed', failedAt: now } });
+        await releaseCoupon(payments, order);
         result.failed += 1;
         continue;
       }
@@ -36,6 +44,7 @@ export const reconcile = async (payments: Payments, now = new Date()) => {
         if (outcome === 'applied') result.paid += 1;
       } else if (real.status === 'expired' || real.status === 'failed') {
         await orders.updateOne({ _id: order._id, status: order.status }, { $set: { status: 'failed', failedAt: now } });
+        await releaseCoupon(payments, order);
         result.failed += 1;
       }
     } catch (error) {
