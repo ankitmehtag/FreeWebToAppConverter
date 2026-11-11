@@ -1,5 +1,6 @@
 import type { Document } from 'mongodb';
 import { setPlan } from '../apps/plan';
+import { finishReceipt } from './receipts';
 import type { Payments } from './routes';
 
 /**
@@ -15,5 +16,6 @@ export const markPaid = async (payments: Payments, order: Document, paymentId?: 
   const current = await orders.findOne({ _id: order._id });
   if (current?.status !== 'paid') return false;
   await setPlan(apps, order.appId, 'premium');
+  await finishReceipt(payments, order._id);
   return true;
 };

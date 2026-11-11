@@ -6,6 +6,8 @@ import { allowOrigin } from '../auth/routes';
 import { requireCsrf, requireSession } from '../auth/session';
 import { planOf } from '../apps/plan';
 import type { prepareOrders } from './orders';
+import { receiptView } from './receipts';
+import type { Mailer } from '../auth/types';
 import { discounted, findUsable, normalizeCode, redeem, releaseCoupon } from './coupons';
 import { isCurrency, premiumPrice, type Currency } from './prices';
 import { markPaid } from './unlock';
@@ -17,6 +19,8 @@ export type Payments = Awaited<ReturnType<typeof prepareOrders>> & {
   /** Where Premium keys live and where builds are kept. A refund revokes the key and checks for downloads. */
   keystores?: Collection<Document>;
   builds?: Collection<Document>;
+  /** Sends receipts. Without one, receipts are still numbered and shown in the account. */
+  mailer?: Mailer;
   /** Only providers with keys set. INR goes to Razorpay; USD waits for Stripe. */
   providers: Partial<Record<ProviderName, PaymentProvider>>;
 };
@@ -159,6 +163,19 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     }
   });
 
+
+  /** The buyer's receipts, newest first. They stay after a refund and after the app is gone. */
+  router.get('/receipts', async (_req, res) => {
+    const list = await orders.find({ userId: userOf(res), receiptNo: { $exists: true } }).sort({ paidAt: -1 }).toArray();
+    res.set('Cache-Control', 'no-store').json(list.map(receiptView));
+  });
+
+  router.get('/receipts/:id', async (req, res) => {
+    const id = String(req.params.id);
+    const order = /^[0-9a-f]{24}$/.test(id) && (await orders.findOne({ _id: new ObjectId(id), userId: userOf(res), receiptNo: { $exists: true } }));
+    if (!order) return res.status(404).json({ error: 'Receipt not found' });
+    res.set('Cache-Control', 'no-store').json(receiptView(order));
+  });
 
   /** The real status, read from our records, not from the redirect (R7). */
   router.get('/orders/:id', async (req, res) => {

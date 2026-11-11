@@ -25,7 +25,7 @@
   - Tests first: AC10
 - [x] T8: Coupons: model, atomic redemption, 100 percent path with no provider call (R17, R18, R19)
   - Tests first: AC11, AC12
-- [ ] T9: Receipts with sequential numbers, emailed through Resend and shown in the account, plain receipts while there is no GST (R20, R21)
+- [x] T9: Receipts with sequential numbers, emailed through Resend and shown in the account, plain receipts while there is no GST (R20, R21)
   - Tests first: AC13
 - [ ] T10: Worker reads the app's plan flag for the watermark (R24)
   - Tests first: AC15

@@ -31,7 +31,7 @@ export const PayReturn = () => {
   if (missing) return <main className="page"><h1>We can’t find that payment</h1><p><Link to="/my-apps">Back to your apps</Link></p></main>;
   if (!order) return <main className="page"><p>Checking your payment…</p></main>;
   const back = <p><Link to={`/my-apps/${order.appId}/review`}>Back to your app</Link></p>;
-  if (order.status === 'paid') return <main className="page"><h1>Premium is on</h1><p>Thank you. Your app is Premium now.</p>{back}</main>;
+  if (order.status === 'paid') return <main className="page"><h1>Premium is on</h1><p>Thank you. Your app is Premium now. Your receipt is in your email and under <Link to="/receipts">Receipts</Link>.</p>{back}</main>;
   if (order.status === 'failed' || order.status === 'refunded') return <main className="page"><h1>The payment didn’t go through</h1><p>You haven’t been charged for Premium. You can try again.</p>{back}</main>;
   return <main className="page"><h1>Waiting for your payment</h1><p>This can take a minute. This page updates by itself.</p>{back}</main>;
 };

@@ -1,6 +1,7 @@
 import { setPlan } from '../apps/plan';
 import { releaseCoupon } from './coupons';
 import { applyEvent } from './events';
+import { finishReceipt } from './receipts';
 import { markPaid } from './unlock';
 import type { Payments } from './routes';
 
@@ -60,6 +61,8 @@ export const reconcile = async (payments: Payments, now = new Date()) => {
       await setPlan(apps, order.appId, 'premium');
       result.repaired += 1;
     }
+    // A receipt cut off before its number or its email.
+    if (!order.receiptEmailedAt) await finishReceipt(payments, order._id);
   }
   return result;
 };

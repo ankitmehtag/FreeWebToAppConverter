@@ -57,10 +57,11 @@ const storage = createIconStore({
   accessKeyId: requireEnv('R2_ACCESS_KEY_ID'),
   secretAccessKey: requireEnv('R2_SECRET_ACCESS_KEY'),
 });
+const mailer = resendKey ? resendMailer(resendKey, mailFrom) : smtpMailer(requireEnv('SMTP_URL'), mailFrom);
 const auth = await prepareAuth({
   db: mongo.db(),
   redis,
-  mailer: resendKey ? resendMailer(resendKey, mailFrom) : smtpMailer(requireEnv('SMTP_URL'), mailFrom),
+  mailer,
   config: {
     jwtSecret,
     appUrl: requireEnv('APP_URL'),
@@ -100,6 +101,7 @@ const payments: Payments | undefined = process.env.RAZORPAY_KEY_ID
       users: mongo.db().collection('users'),
       keystores: mongo.db().collection('keystores'),
       builds: mongo.db().collection('builds'),
+      mailer,
       providers: {
         razorpay: razorpay({
           keyId: process.env.RAZORPAY_KEY_ID,
