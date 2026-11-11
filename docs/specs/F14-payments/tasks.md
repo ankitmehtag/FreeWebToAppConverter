@@ -9,7 +9,7 @@
 - F14 can be built and verified in provider test mode while F13 is in progress. Premium stays "coming soon" on the Pricing page until F13 and F14 are both signed off (R3, Q6).
 
 ## Slices
-- [ ] T1: Plan and price module, `orders` and `providerEvents` collections with indexes, app plan field (R1, R2)
+- [x] T1: Plan and price module, `orders` and `providerEvents` collections with indexes, app plan field (R1, R2)
   - Tests first: AC2, AC3
 - [ ] T2: `PaymentProvider` interface and the Razorpay provider: create checkout, fetch status (R4, R6)
   - Tests first: AC1
