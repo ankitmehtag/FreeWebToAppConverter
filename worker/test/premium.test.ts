@@ -198,6 +198,20 @@ describe('AC10: the plan is read when the worker starts', () => {
   });
 });
 
+describe('F14 AC15: the watermark follows the app\'s plan flag, as payments write it', () => {
+  it('removes it for an app paid for, and puts it back after a refund writes free', async () => {
+    const paid = await startBuild('premium');
+    await processBuild(depsFor(fakeRun()), paid.id, attempt);
+    expect(seen.compileArgs[0]).toContain('-PremoveWatermark=true');
+
+    // A refund sets the plan to free. The next build, even one started as Premium, keeps the watermark.
+    const refunded = await startBuild('free', 'premium');
+    await processBuild(depsFor(fakeRun()), refunded.id, attempt);
+    expect(seen.compileArgs.at(-1)).not.toContain('-PremoveWatermark=true');
+    expect((await load(refunded.id))?.plan).toBe('free');
+  });
+});
+
 describe('AC15: Premium builds are kept', () => {
   it('has no expiry date, and a Free build does', async () => {
     const premium = await startBuild('premium');
