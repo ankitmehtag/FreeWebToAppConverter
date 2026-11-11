@@ -35,4 +35,4 @@ Deployed on 2026-11-12: worker and API on commit 6e5486a, builder image v4, `KEY
 
 Not yet done by a person: a Premium build of a real app on production, the key download in a browser, the AAB in a Play Console upload, and the watermark check on a phone.
 
-Sign-off: owner, date
+Sign-off: owner, 2026-11-12. Production Premium build of app 6af43b8b05c7ded41e26c2d9 (v1.1) succeeded: own key, AAB 3109033 bytes, signer 3E:4B:95:90..., no expiry. The owner signed off after their own checks.
