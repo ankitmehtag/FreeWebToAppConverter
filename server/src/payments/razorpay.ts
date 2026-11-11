@@ -1,11 +1,62 @@
-import type { PaymentProvider, ProviderStatus } from './provider';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { PaymentProvider, ProviderStatus, WebhookEvent } from './provider';
 
 const API = 'https://api.razorpay.com/v1';
 
-type Options = { keyId: string; keySecret: string; fetchImpl?: typeof fetch };
+const header = (headers: Record<string, string | string[] | undefined>, name: string) => {
+  const value = headers[name];
+  return Array.isArray(value) ? value[0] : value;
+};
+
+type Entity = Record<string, unknown>;
+const entity = (payload: unknown, key: string): Entity | undefined =>
+  ((payload as { payload?: Record<string, { entity?: Entity }> })?.payload ?? {})[key]?.entity;
+
+/** Checks X-Razorpay-Signature, an HMAC-SHA256 of the raw body, then maps the event. Null when the signature is missing or wrong. */
+export const verifyRazorpayWebhook = (
+  secret: string | undefined,
+  rawBody: Buffer,
+  headers: Record<string, string | string[] | undefined>,
+): WebhookEvent | null => {
+  const signature = header(headers, 'x-razorpay-signature');
+  const eventId = header(headers, 'x-razorpay-event-id');
+  if (!secret || !signature || !eventId) return null;
+  const expected = createHmac('sha256', secret).update(rawBody).digest();
+  const given = Buffer.from(signature, 'hex');
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+
+  let body: { event?: string };
+  try {
+    body = JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    return { eventId, type: 'ignored' };
+  }
+  const link = entity(body, 'payment_link');
+  const payment = entity(body, 'payment');
+  const refund = entity(body, 'refund');
+  switch (body.event) {
+    case 'payment_link.paid':
+      return {
+        eventId,
+        type: 'paid',
+        providerOrderId: link?.id as string | undefined,
+        paymentId: (payment?.id ?? undefined) as string | undefined,
+        amount: Number(link?.amount_paid ?? payment?.amount),
+        currency: String(link?.currency ?? payment?.currency),
+      };
+    case 'refund.processed':
+      return { eventId, type: 'refunded', paymentId: refund?.payment_id as string | undefined, amount: Number(refund?.amount) };
+    case 'payment.dispute.lost':
+      return { eventId, type: 'disputed', paymentId: ((entity(body, 'dispute') ?? payment)?.payment_id ?? payment?.id) as string | undefined };
+    default:
+      return { eventId, type: 'ignored' };
+  }
+};
+
+type Options = { keyId: string; keySecret: string; webhookSecret?: string; fetchImpl?: typeof fetch };
 
 /** Razorpay through hosted Payment Links, so the buyer pays on Razorpay's page and we never see a card. */
-export const razorpay = ({ keyId, keySecret, fetchImpl = fetch }: Options): PaymentProvider => {
+export const razorpay = ({ keyId, keySecret, webhookSecret, fetchImpl = fetch }: Options): PaymentProvider => {
   const authorization = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
 
   const call = async (path: string, body?: object) => {
@@ -22,6 +73,8 @@ export const razorpay = ({ keyId, keySecret, fetchImpl = fetch }: Options): Paym
 
   return {
     name: 'razorpay',
+
+    verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(webhookSecret, rawBody, headers),
 
     async createCheckout(input) {
       if (input.currency !== 'INR') throw new Error('Razorpay is used for INR only');

@@ -23,9 +23,22 @@ export type ProviderStatus = {
   paymentId?: string;
 };
 
+/** A signed message from a provider, reduced to what the server acts on. */
+export type WebhookEvent = {
+  /** The provider's own id for this delivery, so a repeat can be spotted. */
+  eventId: string;
+  type: 'paid' | 'refunded' | 'failed' | 'disputed' | 'ignored';
+  providerOrderId?: string;
+  paymentId?: string;
+  amount?: number;
+  currency?: string;
+};
+
 /** What the server needs from a payment provider. Card data never reaches us: checkout is the provider's hosted page. */
 export interface PaymentProvider {
   readonly name: ProviderName;
   createCheckout(input: CheckoutInput): Promise<Checkout>;
   fetchStatus(providerOrderId: string): Promise<ProviderStatus>;
+  /** Checks the signature on the raw body first. Null means it is not from the provider, so nothing may be read from it. */
+  verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): WebhookEvent | null;
 }

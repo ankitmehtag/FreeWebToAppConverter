@@ -15,7 +15,7 @@
   - Tests first: AC1
 - [x] T3: Checkout API and the Review-step buy button, with ownership, one-order-per-app and rate limit (R4, R5, R7, R24)
   - Tests first: AC1, AC2, AC3
-- [ ] T4: Razorpay webhook: raw-body signature check, event idempotency, amount and currency match (R8, R9, R10)
+- [x] T4: Razorpay webhook: raw-body signature check, event idempotency, amount and currency match (R8, R9, R10)
   - Tests first: AC4, AC5, AC6
 - [ ] T5: Atomic unlock and out-of-order events (R11, R12)
   - Tests first: AC7, AC8

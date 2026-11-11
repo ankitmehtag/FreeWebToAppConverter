@@ -9,6 +9,7 @@ import { Redis } from 'ioredis';
 import { MongoClient } from 'mongodb';
 import { prepareOrders } from '../src/payments/orders';
 import type { Payments } from '../src/payments/routes';
+import { verifyRazorpayWebhook } from '../src/payments/razorpay';
 import type { CheckoutInput, PaymentProvider } from '../src/payments/provider';
 import { createApp } from '../src/app';
 import { prepareApps } from '../src/apps';
@@ -22,6 +23,7 @@ import { prepareAuth } from '../src/auth';
 import type { FetchUrl } from '../src/url/fetcher';
 
 export const APP_URL = 'http://app.test';
+export const WEBHOOK_SECRET = 'whsec_test_secret';
 
 // The local S3 from Compose stands in for R2. Its credentials are local only.
 export const localS3 = {
@@ -101,6 +103,7 @@ export const makeHarness = async (
       return { providerOrderId: `plink_${checkouts.length}`, checkoutUrl: `https://pay.test/${input.orderId}` };
     },
     fetchStatus: async () => ({ status: 'created', amount: 9900, currency: 'INR' }),
+    verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(WEBHOOK_SECRET, rawBody, headers),
   };
   const payments = { ...pay, apps: apps.apps, users: db.collection('users'), providers: { razorpay: razorpayFake } as Payments['providers'] };
   const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring }, payments }).listen(0);

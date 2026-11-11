@@ -111,7 +111,7 @@ const app = createApp({
         ...(await prepareOrders(mongo.db())),
         apps: mongo.db().collection('apps'),
         users: mongo.db().collection('users'),
-        providers: { razorpay: razorpay({ keyId: process.env.RAZORPAY_KEY_ID, keySecret: requireEnv('RAZORPAY_KEY_SECRET') }) },
+        providers: { razorpay: razorpay({ keyId: process.env.RAZORPAY_KEY_ID, keySecret: requireEnv('RAZORPAY_KEY_SECRET'), webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET }) },
       }
     : undefined,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),

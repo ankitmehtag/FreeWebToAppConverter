@@ -11,6 +11,7 @@ import type { Auth } from './auth';
 import { authRouter } from './auth/routes';
 import { keysRouter, type Keys } from './keystores/routes';
 import { paymentsRouter, type Payments } from './payments/routes';
+import { webhooksRouter } from './payments/webhooks';
 import type { FetchUrl } from './url/fetcher';
 import { urlRouter } from './url/routes';
 import type { Screenshot } from './url/screenshot';
@@ -63,6 +64,8 @@ export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth,
   if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl, unsafe, screenshot));
   if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl, builds, unsafe));
   if (auth && keys) app.use('/keystores', keysRouter(auth, keys));
+  // Webhooks first: they need the raw body and carry no session.
+  if (payments) app.use('/payments/webhooks', webhooksRouter(payments));
   if (auth && payments) app.use('/payments', paymentsRouter(auth, payments));
   if (auth && builds) {
     // Mounted first, because a phone opening an install link has no session.
