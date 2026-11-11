@@ -73,7 +73,7 @@ Let a signed-in user buy Premium for one app, pay in INR through Razorpay or in 
 ## Open questions
 - Q1: Decided by the owner on 2026-11-12: Free is 0, Premium is ₹99 or US$1 per app. Note: Stripe's fixed fee per card charge (about US$0.30 plus a percentage) would take roughly a third of a US$1 sale. Revisit the USD price, or Stripe at all, when F14 is built.
 - Q2: Decided by the owner on 2026-11-12: the seller has no GST registration yet. Receipts are plain receipts with no tax line and no GSTIN, and must not be called tax invoices. When the owner registers, receipts switch to GST invoices (a later change to R20).
-- Q3: Decided on 2026-11-12: build Razorpay first, and add Stripe behind the same interface. If Stripe is not available to the seller, ship INR-only.
+- Q3: Decided on 2026-11-12, confirmed by the owner the same day: ship INR-only with Razorpay now; Stripe (T12) is deferred. Original note: build Razorpay first, and add Stripe behind the same interface. If Stripe is not available to the seller, ship INR-only.
 - Q4: Decided on 2026-11-12: a full refund within 7 days, if no AAB or keystore has been downloaded.
 - Q5: Decided on 2026-11-12: both providers charge per transaction only, with no monthly fee (about 2 to 3 percent plus tax, more for international cards). F14 adds no other cost. Receipts are made by the app, with no paid tax service.
 - Q6: Decided on 2026-11-12: Premium is not sold before F13 delivers it. F13 ships first or together with F14.

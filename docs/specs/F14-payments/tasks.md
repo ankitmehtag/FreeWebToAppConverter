@@ -31,5 +31,5 @@
   - Tests first: AC15
 - [x] T11: Secret and card-data scan of the repo, bundle, logs and image layers, and the refund window text in Terms and on Pricing (R16, R22, R23)
   - Tests first: AC14
-- [ ] T12: Stripe provider behind the same interface, for USD, or INR-only if Stripe is not available to the seller (R6, Q3)
+- [-] T12 (deferred 2026-11-12, owner chose INR-only for now; the Razorpay interface is ready for Stripe later): Stripe provider behind the same interface, for USD, or INR-only if Stripe is not available to the seller (R6, Q3)
   - Tests first: AC1, AC4, AC5
