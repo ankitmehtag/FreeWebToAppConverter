@@ -98,6 +98,8 @@ const payments: Payments | undefined = process.env.RAZORPAY_KEY_ID
       ...(await prepareOrders(mongo.db())),
       apps: mongo.db().collection('apps'),
       users: mongo.db().collection('users'),
+      keystores: mongo.db().collection('keystores'),
+      builds: mongo.db().collection('builds'),
       providers: {
         razorpay: razorpay({
           keyId: process.env.RAZORPAY_KEY_ID,

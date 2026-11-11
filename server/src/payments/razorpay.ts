@@ -94,6 +94,12 @@ export const razorpay = ({ keyId, keySecret, webhookSecret, fetchImpl = fetch }:
       return { providerOrderId: link.id, checkoutUrl: link.short_url };
     },
 
+    async refund(paymentId, amount) {
+      const refund = await call(`/payments/${encodeURIComponent(paymentId)}/refund`, { amount });
+      if (typeof refund.id !== 'string') throw new Error('Razorpay sent no refund id');
+      return { refundId: refund.id };
+    },
+
     async fetchStatus(providerOrderId): Promise<ProviderStatus> {
       const link = await call(`/payment_links/${encodeURIComponent(providerOrderId)}`);
       const amount = Number(link.amount);

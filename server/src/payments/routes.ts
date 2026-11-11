@@ -12,6 +12,9 @@ import type { PaymentProvider, ProviderName } from './provider';
 export type Payments = Awaited<ReturnType<typeof prepareOrders>> & {
   apps: Collection<Document>;
   users: Collection<Document>;
+  /** Where Premium keys live and where builds are kept. A refund revokes the key and checks for downloads. */
+  keystores?: Collection<Document>;
+  builds?: Collection<Document>;
   /** Only providers with keys set. INR goes to Razorpay; USD waits for Stripe. */
   providers: Partial<Record<ProviderName, PaymentProvider>>;
 };

@@ -39,6 +39,8 @@ export interface PaymentProvider {
   readonly name: ProviderName;
   createCheckout(input: CheckoutInput): Promise<Checkout>;
   fetchStatus(providerOrderId: string): Promise<ProviderStatus>;
+  /** A full refund of one payment. */
+  refund(paymentId: string, amount: number): Promise<{ refundId: string }>;
   /** Checks the signature on the raw body first. Null means it is not from the provider, so nothing may be read from it. */
   verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): WebhookEvent | null;
 }

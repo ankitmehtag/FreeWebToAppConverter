@@ -61,12 +61,13 @@ export const keysRouter = (auth: Auth, { keystores, downloads, ring }: Keys) => 
     // The claim is taken before anything is sent, so two requests cannot both get the key.
     const now = new Date();
     const claimed = await keystores.findOneAndUpdate(
-      { ...filter, downloadedAt: null, $or: [{ downloadClaimedAt: null }, { downloadClaimedAt: { $lt: new Date(now.getTime() - CLAIM_MS) } }] } as never,
+      { ...filter, downloadedAt: null, revokedAt: null, $or: [{ downloadClaimedAt: null }, { downloadClaimedAt: { $lt: new Date(now.getTime() - CLAIM_MS) } }] } as never,
       { $set: { downloadClaimedAt: now } as never },
     );
     if (!claimed) {
       const existing = await keystores.findOne(filter);
       if (!existing) return res.status(404).json({ error: 'No key for this app' });
+      if (existing.revokedAt) return res.status(403).json({ error: 'This key can’t be downloaded because the purchase was refunded' });
       return res.status(409).json({ error: 'This key has already been downloaded. We cannot give it out a second time.' });
     }
 

@@ -8,7 +8,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "takedown": "tsx scripts/takedown.ts",
-    "set-plan": "tsx scripts/set-plan.ts"
+    "set-plan": "tsx scripts/set-plan.ts",
+    "refund-order": "tsx scripts/refund-order.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1163.0",

@@ -69,6 +69,8 @@ export type KeystoreRecord = {
   deleteAfter: Date | null;
   /** Set once the owner has been told the key will be erased. */
   eraseNoticeSent?: boolean;
+  /** Set when the purchase is refunded or lost in a dispute: the key can no longer be downloaded. */
+  revokedAt?: Date | null;
 };
 
 export type Keystores = Collection<KeystoreRecord>;

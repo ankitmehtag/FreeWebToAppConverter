@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { setPlan } from '../apps/plan';
+import { closeOrder } from './refunds';
 import type { Payments } from './routes';
 import type { ProviderName, WebhookEvent } from './provider';
 
@@ -31,8 +32,20 @@ export const applyEvent = async (payments: Payments, provider: ProviderName, eve
     if (!refunded) return 'unknown-order';
     // Only full refunds take Premium away (Q4).
     if (event.amount !== refunded.amount) return done('ignored');
-    await orders.updateOne({ _id: refunded._id, status: 'paid' }, { $set: { status: 'refunded', refundedAt: new Date() } });
-    if ((await orders.findOne({ _id: refunded._id }))?.status === 'refunded') await setPlan(apps, refunded.appId, 'free');
+    await closeOrder(payments, refunded, 'refunded');
+    return done('applied');
+  }
+  if (event.type === 'disputed') {
+    const disputed = event.paymentId ? await orders.findOne({ provider, paymentId: event.paymentId }) : null;
+    if (!disputed) return 'unknown-order';
+    await closeOrder(payments, disputed, 'disputed');
+    return done('applied');
+  }
+  if (event.type === 'failed') {
+    // A payment that failed for an order still waiting: the app can be bought again.
+    if (event.providerOrderId) {
+      await orders.updateOne({ provider, providerOrderId: event.providerOrderId, status: { $in: ['created', 'pending'] } }, { $set: { status: 'failed', failedAt: new Date() } });
+    }
     return done('applied');
   }
   if (event.type !== 'paid') return done('ignored');

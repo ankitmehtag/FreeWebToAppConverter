@@ -96,6 +96,7 @@ export const makeHarness = async (
   const downloads = db.collection('keystoreDownloads');
   const pay = await prepareOrders(db);
   const checkouts: CheckoutInput[] = [];
+  const refunds: { paymentId: string; amount: number }[] = [];
   const razorpayFake: PaymentProvider = {
     name: 'razorpay',
     createCheckout: async (input) => {
@@ -103,9 +104,13 @@ export const makeHarness = async (
       return { providerOrderId: `plink_${checkouts.length}`, checkoutUrl: `https://pay.test/${input.orderId}` };
     },
     fetchStatus: async () => ({ status: 'created', amount: 9900, currency: 'INR' }),
+    refund: async (paymentId, amount) => {
+      refunds.push({ paymentId, amount });
+      return { refundId: `rfnd_${refunds.length}` };
+    },
     verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(WEBHOOK_SECRET, rawBody, headers),
   };
-  const payments = { ...pay, apps: apps.apps, users: db.collection('users'), providers: { razorpay: razorpayFake } as Payments['providers'] };
+  const payments = { ...pay, apps: apps.apps, users: db.collection('users'), keystores: keystores as never, builds: builds.builds, providers: { razorpay: razorpayFake } as Payments['providers'] };
   const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring }, payments }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -169,6 +174,7 @@ export const makeHarness = async (
     orders: pay.orders,
     payments,
     checkouts,
+    refunds,
     ring,
     jobs,
     icons,

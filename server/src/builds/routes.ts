@@ -67,7 +67,11 @@ export const buildsRouter = (auth: Auth, deps: Builds) => {
     const build = await ownedBuild(deps, req, res);
     if (!build) return notFound(res);
     const link = await downloadLink(deps, build as never, req.query.file === 'aab' ? 'aab' : 'apk');
-    if (link.url !== undefined) return res.redirect(302, link.url);
+    if (link.url !== undefined) {
+      // A downloaded bundle ends the refund window (Q4).
+      if (req.query.file === 'aab') await deps.builds.updateOne({ _id: build._id }, { $set: { aabDownloadedAt: new Date() } } as never);
+      return res.redirect(302, link.url);
+    }
     res.status(link.status).json({ error: link.error });
   });
 
