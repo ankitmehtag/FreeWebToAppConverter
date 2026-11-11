@@ -14,6 +14,8 @@ const kinds = (text: string) => scanText(text, 'x').map((finding) => finding.kin
 const card = ['4242', '4242', '4242', '4242'].join('');
 const razorpayKey = ['rzp', 'live', 'AbCdEfGh1234'].join('_');
 const stripeKey = ['sk', 'live', 'AbCdEfGh1234'].join('_');
+const name1 = ['RAZORPAY', 'KEY', 'SECRET'].join('_');
+const name2 = ['KEYSTORE', 'MASTER', 'KEY'].join('_');
 const webhookSecret = ['whsec', 'AbCdEfGh12345678'].join('_');
 
 describe('AC14: the scanner finds what it should', () => {
@@ -25,8 +27,8 @@ describe('AC14: the scanner finds what it should', () => {
   });
 
   it('finds a secret that is set to a value, and not one left empty', () => {
-    expect(kinds('RAZORPAY_KEY_SECRET=abcd1234efgh5678')).toEqual(['secret assignment']);
-    expect(kinds('KEYSTORE_MASTER_KEY=1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=')).toEqual(['secret assignment']);
+    expect(kinds(`${name1}=abcd1234efgh5678`)).toEqual(['secret assignment']);
+    expect(kinds(`${name2}=1:${'A'.repeat(43)}=`)).toEqual(['secret assignment']);
     expect(kinds('RAZORPAY_KEY_SECRET=')).toEqual([]);
     expect(kinds('keySecret: requireEnv(\'RAZORPAY_KEY_SECRET\')')).toEqual([]);
   });
