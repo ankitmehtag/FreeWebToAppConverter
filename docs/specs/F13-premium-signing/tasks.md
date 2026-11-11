@@ -9,7 +9,7 @@
 - Premium files are stored without the 7-day expiry, and the R2 lifecycle rule must not touch their prefix.
 
 ## Slices
-- [ ] T1: `plan` field, the single writer function, and the owner's `set-plan` script, with Free as default (R1, R2)
+- [x] T1: `plan` field, the single writer function, and the owner's `set-plan` script, with Free as default (R1, R2)
   - Tests first: AC1
 - [ ] T2: Encryption helper for AES-256-GCM with IV and key id, and the `keystores` collection with a unique `appId` (R5)
   - Tests first: AC4

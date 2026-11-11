@@ -11,6 +11,7 @@ import { requireCsrf, requireSession } from '../auth/session';
 import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } from '../abuse/unsafe';
 import type { FetchUrl } from '../url/fetcher';
 import { iconKey } from './icons';
+import { planOf } from './plan';
 import { MAX_APPS_PER_USER, PUSH_PER_DAY, type Apps } from './index';
 import { prefill } from './prefill';
 import type { Builds } from '../builds';
@@ -26,6 +27,7 @@ const view = (app: Document, latestBuild?: Document) => ({
   id: String(app._id),
   latestBuild: latestBuild ? buildView(latestBuild) : undefined,
   draft: app.draft,
+  plan: planOf(app),
   ready: app.ready,
   locked: Boolean(app.lockedAt),
   hasIcon: Boolean(app.iconKey),
