@@ -17,7 +17,7 @@ Let a signed-in user buy Premium for one app, pay in INR through Razorpay or in 
 
 ### Plans and prices
 - R1: There must be two plans, Free and Premium. Premium is bought per app, once, and belongs to that app for as long as the app exists. Free stays exactly as it is today.
-- R2: Prices must be stored as integers in minor units (paise, cents) with a currency code, and read from one place in the server, never from the browser.
+- R2: Free costs 0. Premium costs 9900 paise (₹99) in INR and 100 cents (US$1) in USD, one time per app. Prices must be stored as integers in minor units (paise, cents) with a currency code, and read from one place in the server, never from the browser.
 - R3: The Pricing page and the wizard must show the live price, and show Premium as available only when F13 and F14 are both live.
 
 ### Checkout
@@ -71,7 +71,7 @@ Let a signed-in user buy Premium for one app, pay in INR through Razorpay or in 
 - AC15 (R24): Given a paid app, when it builds, then the worker removes the watermark based on the app's plan flag, and a Free app's config cannot remove it.
 
 ## Open questions
-- Q1: What is the Premium price in INR, and in which second currency? Proposed: one INR price and one USD price, set by the owner before build.
+- Q1: Decided by the owner on 2026-11-12: Free is 0, Premium is ₹99 or US$1 per app. Note: Stripe's fixed fee per card charge (about US$0.30 plus a percentage) would take roughly a third of a US$1 sale. Revisit the USD price, or Stripe at all, when F14 is built.
 - Q2: Is the seller registered for GST in India? This decides whether receipts must be GST invoices with a GSTIN, or plain receipts. Proposed: plain receipts with the tax line empty until the owner confirms registration, then GST invoices.
 - Q3: Does the owner's business have Razorpay approved, and can it take Stripe (India accounts can be restricted)? Proposed: build Razorpay first, add Stripe behind the same interface, and ship INR-only if Stripe is not available.
 - Q4: Refund window? Proposed: 7 days for a full refund if no AAB or keystore has been downloaded.

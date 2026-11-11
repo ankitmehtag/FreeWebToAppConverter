@@ -34,14 +34,14 @@ export const Pricing = () => {
         </section>
         <section className="plan plan-soon" aria-labelledby="premium">
           <h2 id="premium">Premium</h2>
-          <p className="plan-price">Coming soon</p>
+          <p className="plan-price">₹99 <span className="field-hint">or $1, per app, one time. Coming soon.</span></p>
           <ul>
             <li>Everything in Free</li>
             <li>An Android App Bundle (AAB) ready for Google Play</li>
             <li>Your own signing key, kept for your app’s updates</li>
             <li>No watermark</li>
           </ul>
-          <p className="field-hint">The price is set when Premium opens.</p>
+          
         </section>
       </div>
     </main>
