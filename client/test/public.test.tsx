@@ -69,7 +69,7 @@ describe('F11 AC2: honest plans and the Google Play warning', () => {
     open('/pricing');
     await screen.findByRole('heading', { name: 'Pricing' });
     for (const text of [/3 builds a day/, /kept for 7 days/, /“Made with” watermark/]) expect(screen.getByText(text)).toBeInTheDocument();
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon/)).toBeInTheDocument();
   });
 
   it('warns about Google Play on Home and in the FAQ', async () => {
