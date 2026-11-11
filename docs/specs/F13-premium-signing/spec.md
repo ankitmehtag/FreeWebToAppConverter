@@ -1,6 +1,6 @@
 # F13 Premium signing
 
-Status: draft
+Status: approved
 
 ## Goal
 Give a Premium app what a Free app cannot have: its own signing key, an Android App Bundle (AAB) ready for Google Play, and no "Made with" watermark. The key is the heart of it. An app that updates on Google Play must be signed by the same key for ever, so the key must be created once, stored so it cannot leak, never lost, and handed to the owner in a way that makes them keep a copy.
@@ -61,9 +61,9 @@ Give a Premium app what a Free app cannot have: its own signing key, an Android 
 - AC16 (R18): Given an app with a Free build that is about to get its first Premium build, when the user starts it, then the wizard shows the uninstall warning first.
 
 ## Open questions
-- Q1: Where should the master key live? Proposed: a long random value in the server's `.env.production`, with a copy kept in `~/Documents/sitetoapk-backup/` next to the other backups. A cloud key service would cost money and is not needed yet. If the master key is lost, every Premium key is lost too, so the backup copy matters.
-- Q2: May a user download the key more than once? Proposed: once only, as the plan says, with the confirmation box and the two reminder emails. Our own encrypted copy is what builds use, so a lost download costs the user Google Play updates only if we also lose ours.
-- Q3: Should the same key sign the APK and the AAB? Proposed: yes, one key per app.
-- Q4: After a refund, F14 returns the app to Free, which signs with the shared key and breaks updates for people who installed the Premium APK. Proposed: keep the app's own key for Premium-era builds, build new Free builds with the shared key, and warn on the Pricing page and in the refund email that installed users must reinstall.
-- Q5: The builder image may need new files to build an AAB offline, which means a new image version. Proposed: build and verify it with the DNS builder as for v3, and confirm the size and build time before sign-off.
-- Q6: Cost: F13 adds no paid service. Each Premium build makes a second file, so storage and build time grow a little. Proposed: no extra limit, as the 3 builds a day cap already bounds it.
+- Q1: Decided on 2026-11-12: the master key is a long random value in the server's `.env.production`, with a copy in `~/Documents/sitetoapk-backup/`. No cloud key service. If the master key is lost, every Premium key is lost.
+- Q2: Decided on 2026-11-12: the key can be downloaded once, after a confirmation box, with the two reminder emails.
+- Q3: Decided on 2026-11-12: one key per app signs both the APK and the AAB.
+- Q4: Decided on 2026-11-12: after a refund, builds made while Premium keep the app's own key, new Free builds use the shared key, and the Pricing page and the refund email warn that installed users must reinstall.
+- Q5: Decided on 2026-11-12: a new builder image version is built and verified with the DNS builder, and its size and build time are checked before sign-off.
+- Q6: Decided on 2026-11-12: F13 adds no paid service and no extra limit; the 3 builds a day cap stays.
