@@ -13,7 +13,7 @@
   - Tests first: AC2, AC3
 - [x] T2: `PaymentProvider` interface and the Razorpay provider: create checkout, fetch status (R4, R6)
   - Tests first: AC1
-- [ ] T3: Checkout API and the Review-step buy button, with ownership, one-order-per-app and rate limit (R4, R5, R7, R24)
+- [x] T3: Checkout API and the Review-step buy button, with ownership, one-order-per-app and rate limit (R4, R5, R7, R24)
   - Tests first: AC1, AC2, AC3
 - [ ] T4: Razorpay webhook: raw-body signature check, event idempotency, amount and currency match (R8, R9, R10)
   - Tests first: AC4, AC5, AC6

@@ -7,6 +7,9 @@ import type { AddressInfo } from 'node:net';
 import { CreateBucketCommand } from '@aws-sdk/client-s3';
 import { Redis } from 'ioredis';
 import { MongoClient } from 'mongodb';
+import { prepareOrders } from '../src/payments/orders';
+import type { Payments } from '../src/payments/routes';
+import type { CheckoutInput, PaymentProvider } from '../src/payments/provider';
 import { createApp } from '../src/app';
 import { prepareApps } from '../src/apps';
 import { createIconStore } from '../src/apps/icons';
@@ -89,7 +92,18 @@ export const makeHarness = async (
   const ring = parseKeyring(`1:${randomBytes(32).toString('base64')}`);
   const keystores = await prepareKeystores(db);
   const downloads = db.collection('keystoreDownloads');
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring } }).listen(0);
+  const pay = await prepareOrders(db);
+  const checkouts: CheckoutInput[] = [];
+  const razorpayFake: PaymentProvider = {
+    name: 'razorpay',
+    createCheckout: async (input) => {
+      checkouts.push(input);
+      return { providerOrderId: `plink_${checkouts.length}`, checkoutUrl: `https://pay.test/${input.orderId}` };
+    },
+    fetchStatus: async () => ({ status: 'created', amount: 9900, currency: 'INR' }),
+  };
+  const payments = { ...pay, apps: apps.apps, users: db.collection('users'), providers: { razorpay: razorpayFake } as Payments['providers'] };
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring }, payments }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
@@ -149,6 +163,9 @@ export const makeHarness = async (
     reports: reports.reports,
     keystores,
     downloads,
+    orders: pay.orders,
+    payments,
+    checkouts,
     ring,
     jobs,
     icons,

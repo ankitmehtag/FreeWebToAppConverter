@@ -6,6 +6,8 @@ import { createApp } from './app';
 import { prepareApps } from './apps';
 import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import { createIconStore } from './apps/icons';
+import { prepareOrders } from './payments/orders';
+import { razorpay } from './payments/razorpay';
 import { prepareBuilds } from './builds';
 import { prepareReports } from './abuse/reports';
 import { createUnsafeChecker, webRiskLookup } from './abuse/unsafe';
@@ -102,6 +104,15 @@ const app = createApp({
   trustProxy: process.env.TRUST_PROXY || undefined,
   keys: process.env.KEYSTORE_MASTER_KEY
     ? { keystores: await prepareKeystores(mongo.db()), downloads: mongo.db().collection('keystoreDownloads'), ring: parseKeyring(process.env.KEYSTORE_MASTER_KEY) }
+    : undefined,
+  // Off until a Razorpay key pair is set, so nothing is for sale before the owner decides.
+  payments: process.env.RAZORPAY_KEY_ID
+    ? {
+        ...(await prepareOrders(mongo.db())),
+        apps: mongo.db().collection('apps'),
+        users: mongo.db().collection('users'),
+        providers: { razorpay: razorpay({ keyId: process.env.RAZORPAY_KEY_ID, keySecret: requireEnv('RAZORPAY_KEY_SECRET') }) },
+      }
     : undefined,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).

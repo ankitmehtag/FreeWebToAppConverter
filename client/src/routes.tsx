@@ -1,3 +1,4 @@
+import { PayReturn } from './pages/pay-return';
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout } from './layout';
@@ -31,6 +32,7 @@ export const AppRoutes = () => (
       <Route path="reset-password" element={<ResetPassword />} />
       <Route path="verify-email" element={<VerifyEmail />} />
       <Route path="my-apps" element={signedIn(<AppsList />)} />
+      <Route path="pay/return" element={signedIn(<PayReturn />)} />
       <Route path="my-apps/:id/builds/:buildId" element={signedIn(<BuildPage />)} />
       <Route path="my-apps/:id/:step?" element={signedIn(<Wizard />)} />
       <Route path="install/:token" element={<InstallPage />} />

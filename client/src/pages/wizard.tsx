@@ -4,6 +4,7 @@ import { DEFAULT_BEHAVIOUR, draftSchema, permissionsFor, suggestPackageName, toA
 import { api, ApiError, type FieldErrors } from '../api';
 import { BuildPanel } from '../build-panel';
 import { KeyPanel } from '../key-panel';
+import { PayPanel } from '../pay-panel';
 import { PushPanel } from '../push-panel';
 import { PhonePreview } from '../preview';
 import { failureText, normaliseUrl, passes, type UrlCheck } from '../url-check';
@@ -513,7 +514,7 @@ export const Wizard = () => {
                 !app.takenDown && (
                   <>
                     <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} reinstallWarning={app.reinstallWarning} />
-                    {app.plan === 'premium' && <KeyPanel appId={id} />}
+                    {app.plan === 'premium' ? <KeyPanel appId={id} /> : <PayPanel appId={id} />}
                     {ui.push && app.locked && <PushPanel appId={id} />}
                   </>
                 )

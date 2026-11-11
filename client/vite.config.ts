@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 
 // The API is reached through this proxy, so the app and the API share one origin and its cookies.
 const api = process.env.API_URL ?? 'http://localhost:3000';
-const proxy = Object.fromEntries(['/auth', '/apps', '/url', '/builds', '/reports', '/keystores'].map((path) => [path, { target: api }]));
+const proxy = Object.fromEntries(['/auth', '/apps', '/url', '/builds', '/reports', '/keystores', '/payments'].map((path) => [path, { target: api }]));
 
 export default defineConfig({
   plugins: [react()],
