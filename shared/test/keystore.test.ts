@@ -30,7 +30,7 @@ describe('AC4: keystore secrets are sealed with AES-256-GCM', () => {
   it('refuses a record that was changed', () => {
     const ring = parseKeyring(keyText('1'));
     const sealed = seal(ring, secret, APP);
-    sealed.data[0] ^= 1;
+    sealed.data[0] = sealed.data[0]! ^ 1;
     expect(() => open(ring, sealed, APP)).toThrow();
   });
 
