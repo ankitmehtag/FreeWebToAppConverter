@@ -12,6 +12,11 @@ export type BuildView = {
   failureKind?: 'input' | 'compile' | 'timeout' | 'check' | 'infra';
   artifactBytes?: number;
   sha256?: string;
+  plan?: 'free' | 'premium';
+  /** Premium builds also make a bundle for Google Play. */
+  aab?: { bytes?: number; sha256?: string };
+  /** The certificate this build is signed with, for Firebase, Google sign-in and assetlinks. */
+  signer?: { sha1?: string; sha256?: string };
   expiresAt?: string;
   expired: boolean;
   /** The APK was deleted by a takedown. */
@@ -178,7 +183,7 @@ export const BuildPage = () => {
 
       {build.status === 'success' && build.expired && !build.removed && (
         <div className="check check-bad" role="status">
-          <p>Free builds are kept for 7 days, and this one has expired.</p>
+          <p>{build.plan === 'premium' ? 'This build is no longer available.' : 'Free builds are kept for 7 days, and this one has expired.'}</p>
           <Link to={`/my-apps/${appId}/review`} className="small-link">Start a new build</Link>
         </div>
       )}
@@ -187,9 +192,24 @@ export const BuildPage = () => {
         <section className="build-ready">
           <div className="build-actions">
             <a className="button" href={`/builds/${build.id}/download`}>Download APK</a>
-            <span className="field-hint">{megabytes(build.artifactBytes)} · kept until {date(build.expiresAt!)}</span>
+            {build.aab && <a className="button button-quiet" href={`/builds/${build.id}/download?file=aab`}>Download AAB</a>}
+            <span className="field-hint">
+              {megabytes(build.artifactBytes)}
+              {build.aab ? ` APK · ${megabytes(build.aab.bytes)} AAB` : ''} · {build.expiresAt ? `kept until ${date(build.expiresAt)}` : 'kept while your account is active'}
+            </span>
           </div>
-          <p className="field-hint">SHA-256 <span className="mono sha">{build.sha256}</span></p>
+          <p className="field-hint">APK SHA-256 <span className="mono sha">{build.sha256}</span></p>
+          {build.aab?.sha256 && <p className="field-hint">AAB SHA-256 <span className="mono sha">{build.aab.sha256}</span></p>}
+          {build.signer && (
+            <div className="stack">
+              <p className="field-hint">Signing certificate SHA-1 <span className="mono sha">{build.signer.sha1}</span></p>
+              <p className="field-hint">Signing certificate SHA-256 <span className="mono sha">{build.signer.sha256}</span></p>
+              <p className="field-hint">
+                Upload the AAB to Google Play. With Play App Signing, the key we made for your app is your upload key, and Google may hold
+                the final signing key. Use the fingerprints above for Firebase, Google sign-in and app links.
+              </p>
+            </div>
+          )}
           <InstallOnPhone buildId={build.id} />
         </section>
       )}

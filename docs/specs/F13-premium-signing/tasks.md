@@ -35,5 +35,5 @@
   - Tests first: AC13
 - [x] T13: 7-day grace before erasing the key on app or account deletion, with the owner emailed and download offered (R7, R16)
   - Tests first: AC14
-- [ ] T14: Wizard warning before the first Premium build of an app that already has a Free build (R18)
+- [x] T14: Wizard warning before the first Premium build of an app that already has a Free build (R18)
   - Tests first: AC16

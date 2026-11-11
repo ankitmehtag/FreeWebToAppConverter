@@ -12,6 +12,9 @@ export type AppView = {
   locked: boolean;
   hasIcon: boolean;
   latestBuild?: BuildView;
+  plan?: 'free' | 'premium';
+  /** A Premium app whose people installed Free builds: the first Premium build uses a new key, so they must reinstall. */
+  reinstallWarning?: boolean;
   takenDown?: { reason: string; at: string };
   createdAt: string;
   updatedAt: string;

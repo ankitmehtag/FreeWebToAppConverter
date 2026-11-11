@@ -9,10 +9,21 @@ type Refusal = { reason?: string; buildId?: string; nextAllowedAt?: string };
 const LIVE = ['queued', 'building', 'signing', 'uploading'];
 
 /** Starts a build from the Review step, and explains a refusal in terms the user can act on. */
-export const BuildPanel = ({ appId, latest, emailVerified }: { appId: string; latest?: BuildView; emailVerified: boolean }) => {
+export const BuildPanel = ({
+  appId,
+  latest,
+  emailVerified,
+  reinstallWarning = false,
+}: {
+  appId: string;
+  latest?: BuildView;
+  emailVerified: boolean;
+  reinstallWarning?: boolean;
+}) => {
   const navigate = useNavigate();
   const [versionName, setVersionName] = useState(latest?.versionName ?? '1.0');
   const [busy, setBusy] = useState(false);
+  const [understood, setUnderstood] = useState(false);
   const [message, setMessage] = useState<{ text: string; buildId?: string } | null>(null);
   // One key per attempt, so a double click or a retried request starts one build.
   const [attempt, setAttempt] = useState(() => crypto.randomUUID());
@@ -62,10 +73,16 @@ export const BuildPanel = ({ appId, latest, emailVerified }: { appId: string; la
             aria-label="Version name"
           />
         </label>
-        <button type="button" className="button" disabled={busy || !validVersion || Boolean(running)} onClick={start}>
+        <button type="button" className="button" disabled={busy || !validVersion || Boolean(running) || (reinstallWarning && !understood)} onClick={start}>
           {busy ? 'Starting…' : 'Build app'}
         </button>
       </div>
+      {reinstallWarning && (
+        <label className="check check-bad">
+          <input type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />{' '}
+          This Premium build uses a new signing key. People who installed an earlier Free build must uninstall it before they can install this one.
+        </label>
+      )}
       <p className="field-hint">
         {validVersion ? 'Shown to people as the app’s version, like 1.0 or 1.2.3. Free builds: 3 a day.' : 'Use digits and dots, like 1.0 or 1.2.3.'}
       </p>

@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { DEFAULT_BEHAVIOUR, draftSchema, permissionsFor, suggestPackageName, toAppConfig, type Draft } from '@sitetoapk/shared';
 import { api, ApiError, type FieldErrors } from '../api';
 import { BuildPanel } from '../build-panel';
+import { KeyPanel } from '../key-panel';
 import { PushPanel } from '../push-panel';
 import { PhonePreview } from '../preview';
 import { failureText, normaliseUrl, passes, type UrlCheck } from '../url-check';
@@ -511,7 +512,8 @@ export const Wizard = () => {
               {app.ready && config ? (
                 !app.takenDown && (
                   <>
-                    <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} />
+                    <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} reinstallWarning={app.reinstallWarning} />
+                    {app.plan === 'premium' && <KeyPanel appId={id} />}
                     {ui.push && app.locked && <PushPanel appId={id} />}
                   </>
                 )
