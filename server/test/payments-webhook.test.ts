@@ -22,7 +22,7 @@ const planOf = async (appId: string) => (await h.apps.findOne({ _id: new ObjectI
 const paidBody = (providerOrderId: string, amount = 9900, currency = 'INR') =>
   JSON.stringify({
     event: 'payment_link.paid',
-    payload: { payment_link: { entity: { id: providerOrderId, amount, amount_paid: amount, currency } }, payment: { entity: { id: 'pay_1', amount, currency } } },
+    payload: { payment_link: { entity: { id: providerOrderId, amount, amount_paid: amount, currency } }, payment: { entity: { id: `pay_${providerOrderId}`, amount, currency } } },
   });
 const sign = (body: string, secret = WEBHOOK_SECRET) => createHmac('sha256', secret).update(body).digest('hex');
 const send = (body: string, { eventId = `evt_${Math.random()}`, signature = sign(body) }: { eventId?: string; signature?: string | null } = {}) =>
@@ -67,7 +67,7 @@ describe('AC5: a repeated event is a no-op', () => {
     const again = await send(body, { eventId: 'evt_same' });
     expect([first.status, again.status]).toEqual([200, 200]);
     const order = await h.orders.findOne({ _id: new ObjectId(orderId) });
-    expect(order).toMatchObject({ status: 'paid', paymentId: 'pay_1' });
+    expect(order).toMatchObject({ status: 'paid', paymentId: `pay_${providerOrderId}` });
     expect(await planOf(appId)).toBe('premium');
     expect(await h.db.collection('providerEvents').countDocuments({ eventId: 'evt_same' })).toBe(1);
   });
@@ -114,5 +114,66 @@ describe('an event for an order we cannot match yet', () => {
   it('ignores events it does not act on', async () => {
     const body = JSON.stringify({ event: 'order.paid', payload: {} });
     expect((await send(body)).status).toBe(200);
+  });
+});
+
+const refundBody = (paymentId: string, amount = 9900) =>
+  JSON.stringify({ event: 'refund.processed', payload: { refund: { entity: { id: 'rfnd_1', payment_id: paymentId, amount } } } });
+
+describe('AC7: a cut-off event ends consistent when it is retried', () => {
+  it('finishes an event that was recorded but not applied', async () => {
+    const { appId, orderId, providerOrderId } = await withOrder();
+    // The process died right after recording the event.
+    await h.db.collection('providerEvents').insertOne({ provider: 'razorpay', eventId: 'evt_cut', type: 'paid', receivedAt: new Date() });
+    expect(await planOf(appId)).toBeUndefined();
+    expect((await send(paidBody(providerOrderId), { eventId: 'evt_cut' })).status).toBe(200);
+    expect((await h.orders.findOne({ _id: new ObjectId(orderId) }))?.status).toBe('paid');
+    expect(await planOf(appId)).toBe('premium');
+  });
+
+  it('unlocks an app whose order was marked paid but whose plan was not set', async () => {
+    const { appId, orderId, providerOrderId } = await withOrder();
+    await h.orders.updateOne({ _id: new ObjectId(orderId) }, { $set: { status: 'paid', paymentId: `pay_${providerOrderId}` } });
+    expect(await planOf(appId)).toBeUndefined();
+    expect((await send(paidBody(providerOrderId), { eventId: 'evt_half' })).status).toBe(200);
+    expect(await planOf(appId)).toBe('premium');
+  });
+});
+
+describe('AC8: events in any order', () => {
+  it('ends Free when a refund arrives before the payment', async () => {
+    const { appId, orderId, providerOrderId } = await withOrder();
+    expect((await send(refundBody(`pay_${providerOrderId}`), { eventId: 'evt_refund' })).status).toBe(503);
+    expect((await send(paidBody(providerOrderId), { eventId: 'evt_paid' })).status).toBe(200);
+    expect((await h.orders.findOne({ _id: new ObjectId(orderId) }))?.status).toBe('refunded');
+    expect(await planOf(appId)).not.toBe('premium');
+    // The provider's retry of the refund finds the order and closes the event.
+    expect((await send(refundBody(`pay_${providerOrderId}`), { eventId: 'evt_refund' })).status).toBe(200);
+    expect(await planOf(appId)).not.toBe('premium');
+  });
+
+  it('returns a paid app to Free on a later refund', async () => {
+    const { appId, orderId, providerOrderId } = await withOrder();
+    await send(paidBody(providerOrderId));
+    expect(await planOf(appId)).toBe('premium');
+    expect((await send(refundBody(`pay_${providerOrderId}`))).status).toBe(200);
+    expect((await h.orders.findOne({ _id: new ObjectId(orderId) }))?.status).toBe('refunded');
+    expect(await planOf(appId)).toBe('free');
+  });
+
+  it('does not unlock again when the payment event is replayed after a refund', async () => {
+    const { appId, providerOrderId } = await withOrder();
+    await send(paidBody(providerOrderId), { eventId: 'evt_p1' });
+    await send(refundBody(`pay_${providerOrderId}`));
+    expect((await send(paidBody(providerOrderId), { eventId: 'evt_p2' })).status).toBe(200);
+    expect(await planOf(appId)).toBe('free');
+  });
+
+  it('ignores a partial refund', async () => {
+    const { appId, orderId, providerOrderId } = await withOrder();
+    await send(paidBody(providerOrderId));
+    expect((await send(refundBody(`pay_${providerOrderId}`, 500))).status).toBe(200);
+    expect((await h.orders.findOne({ _id: new ObjectId(orderId) }))?.status).toBe('paid');
+    expect(await planOf(appId)).toBe('premium');
   });
 });
