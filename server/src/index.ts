@@ -8,6 +8,8 @@ import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import { createIconStore } from './apps/icons';
 import { prepareOrders } from './payments/orders';
 import { razorpay } from './payments/razorpay';
+import { reconcile } from './payments/reconcile';
+import type { Payments } from './payments/routes';
 import { prepareBuilds } from './builds';
 import { prepareReports } from './abuse/reports';
 import { createUnsafeChecker, webRiskLookup } from './abuse/unsafe';
@@ -90,6 +92,28 @@ const auth = await prepareAuth({
 const pushAccount = serviceAccountFromEnv();
 const pushSender = () => (pushAccount ? (appId: string, message: { title: string; body: string }) => sendToApp(pushAccount, appId, message) : undefined);
 
+// Off until a Razorpay key pair is set, so nothing is for sale before the owner decides.
+const payments: Payments | undefined = process.env.RAZORPAY_KEY_ID
+  ? {
+      ...(await prepareOrders(mongo.db())),
+      apps: mongo.db().collection('apps'),
+      users: mongo.db().collection('users'),
+      providers: {
+        razorpay: razorpay({
+          keyId: process.env.RAZORPAY_KEY_ID,
+          keySecret: requireEnv('RAZORPAY_KEY_SECRET'),
+          webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+        }),
+      },
+    }
+  : undefined;
+// Orders a webhook never settled are fixed from the provider's own status (R13).
+if (payments) {
+  const sweep = () => reconcile(payments).catch((error) => console.error('Reconcile failed', error instanceof Error ? error.message : 'unknown'));
+  setInterval(sweep, 10 * 60 * 1000).unref();
+  void sweep();
+}
+
 const app = createApp({
   checkMongo: async () => {
     await mongo.db().command({ ping: 1 });
@@ -105,15 +129,7 @@ const app = createApp({
   keys: process.env.KEYSTORE_MASTER_KEY
     ? { keystores: await prepareKeystores(mongo.db()), downloads: mongo.db().collection('keystoreDownloads'), ring: parseKeyring(process.env.KEYSTORE_MASTER_KEY) }
     : undefined,
-  // Off until a Razorpay key pair is set, so nothing is for sale before the owner decides.
-  payments: process.env.RAZORPAY_KEY_ID
-    ? {
-        ...(await prepareOrders(mongo.db())),
-        apps: mongo.db().collection('apps'),
-        users: mongo.db().collection('users'),
-        providers: { razorpay: razorpay({ keyId: process.env.RAZORPAY_KEY_ID, keySecret: requireEnv('RAZORPAY_KEY_SECRET'), webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET }) },
-      }
-    : undefined,
+  payments,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
   unsafe: process.env.WEB_RISK_API_KEY ? createUnsafeChecker(redis, webRiskLookup(process.env.WEB_RISK_API_KEY)) : undefined,

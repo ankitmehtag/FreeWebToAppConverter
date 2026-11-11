@@ -19,7 +19,7 @@
   - Tests first: AC4, AC5, AC6
 - [x] T5: Atomic unlock and out-of-order events (R11, R12)
   - Tests first: AC7, AC8
-- [ ] T6: Reconciliation cron for stuck orders (R13)
+- [x] T6: Reconciliation cron for stuck orders (R13)
   - Tests first: AC9
 - [ ] T7: Refunds, failed payments and disputes, and the owner's refund script (R14, R15, R16)
   - Tests first: AC10
