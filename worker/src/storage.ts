@@ -18,7 +18,12 @@ export type { StorageOptions };
 
 export type Storage = ReturnType<typeof createStorage>;
 
-export const artifactKey = (plan: 'free' | 'premium', buildId: string) => `${plan}/${buildId}.apk`;
+export const artifactKey = (plan: 'free' | 'premium', buildId: string, extension: 'apk' | 'aab' = 'apk') => `${plan}/${buildId}.${extension}`;
+
+const FILE_TYPES = {
+  apk: { contentType: 'application/vnd.android.package-archive', filename: 'app.apk' },
+  aab: { contentType: 'application/octet-stream', filename: 'app.aab' },
+};
 
 export const createStorage = (options: StorageOptions) => {
   const { bucket } = options;
@@ -26,14 +31,14 @@ export const createStorage = (options: StorageOptions) => {
 
   return {
     /** Uploads a file and returns the size the bucket reports, confirming it arrived. */
-    put: async (key: string, path: string) => {
+    put: async (key: string, path: string, kind: keyof typeof FILE_TYPES = 'apk') => {
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,
           Key: key,
           Body: await readFile(path),
-          ContentType: 'application/vnd.android.package-archive',
-          ContentDisposition: 'attachment; filename="app.apk"',
+          ContentType: FILE_TYPES[kind].contentType,
+          ContentDisposition: `attachment; filename="${FILE_TYPES[kind].filename}"`,
         }),
       );
       const { ContentLength } = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));

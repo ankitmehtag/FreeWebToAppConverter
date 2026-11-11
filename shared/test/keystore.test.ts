@@ -66,3 +66,8 @@ describe('parseKeyring', () => {
     expect(() => parseKeyring(`${same},${same}`)).toThrow(/twice/);
   });
 });
+
+import { plainHex } from '../src/keystore';
+describe('plainHex', () => {
+  it('drops the colons and lowercases', () => expect(plainHex('AA:0B:CC')).toBe('aa0bcc'));
+});

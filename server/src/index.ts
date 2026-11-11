@@ -4,6 +4,7 @@ import { QUEUE_NAME } from '@sitetoapk/shared/builds';
 import { MongoClient } from 'mongodb';
 import { createApp } from './app';
 import { prepareApps } from './apps';
+import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import { createIconStore } from './apps/icons';
 import { prepareBuilds } from './builds';
 import { prepareReports } from './abuse/reports';
@@ -99,6 +100,9 @@ const app = createApp({
   // Off until a screenshot service is named, as in local development without Compose's `shot`.
   screenshot: process.env.SHOT_URL ? createShotClient(process.env.SHOT_URL) : undefined,
   trustProxy: process.env.TRUST_PROXY || undefined,
+  keys: process.env.KEYSTORE_MASTER_KEY
+    ? { keystores: await prepareKeystores(mongo.db()), downloads: mongo.db().collection('keystoreDownloads'), ring: parseKeyring(process.env.KEYSTORE_MASTER_KEY) }
+    : undefined,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
   unsafe: process.env.WEB_RISK_API_KEY ? createUnsafeChecker(redis, webRiskLookup(process.env.WEB_RISK_API_KEY)) : undefined,

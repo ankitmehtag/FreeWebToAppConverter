@@ -1,11 +1,10 @@
 import type { Collection, Document, ObjectId } from 'mongodb';
 
-export type Plan = 'free' | 'premium';
+import { planOf, type Plan } from '@sitetoapk/shared';
+
+export { planOf, type Plan };
 
 const PLANS: readonly string[] = ['free', 'premium'];
-
-/** Anything that isn't exactly "premium" is Free, so a missing or odd value never unlocks Premium. */
-export const planOf = (app: { plan?: unknown }): Plan => (app.plan === 'premium' ? 'premium' : 'free');
 
 /** The only code that writes an app's plan. F14 calls it after a payment, and `scripts/set-plan.ts` calls it for the owner. */
 export const setPlan = async (apps: Collection<Document>, appId: ObjectId, plan: Plan): Promise<boolean> => {

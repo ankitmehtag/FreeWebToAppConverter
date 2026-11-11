@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import type { Screenshot } from '../src/url/screenshot';
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
@@ -84,7 +86,10 @@ export const makeHarness = async (
     config: { dailyLimit: 3, windowMs: 24 * 60 * 60 * 1000, ...buildsConfig },
   });
   const reports = await prepareReports(db, 'abuse@example.com');
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot }).listen(0);
+  const ring = parseKeyring(`1:${randomBytes(32).toString('base64')}`);
+  const keystores = await prepareKeystores(db);
+  const downloads = db.collection('keystoreDownloads');
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring } }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
@@ -142,6 +147,9 @@ export const makeHarness = async (
     apps: apps.apps,
     builds: builds.builds,
     reports: reports.reports,
+    keystores,
+    downloads,
+    ring,
     jobs,
     icons,
     bucket,

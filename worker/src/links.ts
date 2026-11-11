@@ -1,4 +1,5 @@
 import type { Collection } from 'mongodb';
+import { isExpired } from '@sitetoapk/shared/builds';
 import { LINK_LIFETIME_SECONDS, type Storage } from './storage';
 
 type LinkDeps = { builds: Collection; storage: Storage };
@@ -7,7 +8,7 @@ type LinkDeps = { builds: Collection; storage: Storage };
 export const createDownloadLink = async ({ builds, storage }: LinkDeps, buildId: string, lifetimeSeconds = LINK_LIFETIME_SECONDS) => {
   const build = await builds.findOne({ _id: buildId as never });
   if (build?.status !== 'success' || !build.artifactKey) throw new Error('Artifact not available');
-  if (build.expiresAt <= new Date()) throw new Error('Artifact expired');
+  if (isExpired(build as never)) throw new Error('Artifact expired');
   return storage.signedLink(build.artifactKey, lifetimeSeconds);
 };
 

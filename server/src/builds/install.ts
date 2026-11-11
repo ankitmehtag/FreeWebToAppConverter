@@ -1,3 +1,4 @@
+import { isExpired } from '@sitetoapk/shared/builds';
 import express, { Router, type Request, type Response } from 'express';
 import type { Document } from 'mongodb';
 import type { Auth } from '../auth';
@@ -33,7 +34,7 @@ export const installRouter = (auth: Auth, deps: Builds) => {
     const entry = await deps.installTokens.findOne({ hash: sha256(token), expiresAt: { $gt: new Date() } });
     if (!entry) return null;
     const build = await deps.builds.findOne({ _id: entry.buildId });
-    const usable = build?.status === 'success' && build.artifactKey && build.expiresAt > new Date();
+    const usable = build?.status === 'success' && build.artifactKey && !isExpired(build as never);
     return usable ? build : null;
   };
 

@@ -1,7 +1,7 @@
 import cookieParser from 'cookie-parser';
 import express, { Router, type Request, type Response } from 'express';
 import type { ObjectId } from 'mongodb';
-import { FINAL_STATUSES, logChannel, logLinesKey, type BuildEvent, type LogLine } from '@sitetoapk/shared/builds';
+import { FINAL_STATUSES, isExpired, logChannel, logLinesKey, type BuildEvent, type LogLine } from '@sitetoapk/shared/builds';
 import type { Auth } from '../auth';
 import { allowOrigin, invalid } from '../auth/routes';
 import { requireCsrf, requireSession } from '../auth/session';
@@ -31,12 +31,18 @@ const linesSoFar = async ({ buildLogs, redis }: Builds, id: string): Promise<Log
 /** Answers the download link, or why there is none. Shared with the install routes. */
 type Link = { url: string } | { url?: undefined; status: number; error: string };
 
-export const downloadLink = async (deps: Builds, build: { status: string; artifactKey?: string; expiresAt?: Date }): Promise<Link> => {
-  if (build.status !== 'success') return { status: 409, error: 'This build has no APK' };
-  if (!build.artifactKey || !build.expiresAt || build.expiresAt <= new Date()) {
+export const downloadLink = async (
+  deps: Builds,
+  build: { status: string; plan?: string; artifactKey?: string; aabKey?: string; expiresAt?: Date | null },
+  file: 'apk' | 'aab' = 'apk',
+): Promise<Link> => {
+  if (build.status !== 'success') return { status: 409, error: `This build has no ${file === 'aab' ? 'bundle' : 'APK'}` };
+  if (file === 'aab' && !build.aabKey) return { status: 404, error: 'This build has no bundle' };
+  const key = file === 'aab' ? build.aabKey : build.artifactKey;
+  if (!key || isExpired(build)) {
     return { status: 410, error: 'This build has expired. Start a new build to get the app again.' };
   }
-  return { url: await deps.storage.signedLink(build.artifactKey, DOWNLOAD_LINK_SECONDS) };
+  return { url: await deps.storage.signedLink(key, DOWNLOAD_LINK_SECONDS) };
 };
 
 export const buildsRouter = (auth: Auth, deps: Builds) => {
@@ -60,7 +66,7 @@ export const buildsRouter = (auth: Auth, deps: Builds) => {
   router.get('/:id/download', async (req, res) => {
     const build = await ownedBuild(deps, req, res);
     if (!build) return notFound(res);
-    const link = await downloadLink(deps, build as never);
+    const link = await downloadLink(deps, build as never, req.query.file === 'aab' ? 'aab' : 'apk');
     if (link.url !== undefined) return res.redirect(302, link.url);
     res.status(link.status).json({ error: link.error });
   });

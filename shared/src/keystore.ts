@@ -55,6 +55,9 @@ export const open = (ring: Keyring, sealed: Sealed, appId: string): Buffer => {
 
 export type KeystoreRecord = {
   appId: ObjectId;
+  ownerId?: ObjectId;
+  /** Backup reminder emails sent so far: one a day after the key is made, one after a week. */
+  remindersSent: number;
   keyId: string;
   iv: Buffer;
   tag: Buffer;
@@ -64,6 +67,8 @@ export type KeystoreRecord = {
   createdAt: Date;
   downloadedAt: Date | null;
   deleteAfter: Date | null;
+  /** Set once the owner has been told the key will be erased. */
+  eraseNoticeSent?: boolean;
 };
 
 export type Keystores = Collection<KeystoreRecord>;
@@ -92,11 +97,23 @@ export const createKeystoreOnce = async (
   appId: ObjectId,
   secrets: KeystoreSecrets,
   fingerprints: Fingerprints,
+  ownerId?: ObjectId,
 ): Promise<boolean> => {
   const sealed = seal(ring, pack(secrets), String(appId));
   const result = await keystores.updateOne(
     { appId },
-    { $setOnInsert: { appId, ...sealed, ...fingerprints, createdAt: new Date(), downloadedAt: null, deleteAfter: null } },
+    {
+      $setOnInsert: {
+        appId,
+        ...(ownerId ? { ownerId } : {}),
+        remindersSent: 0,
+        ...sealed,
+        ...fingerprints,
+        createdAt: new Date(),
+        downloadedAt: null,
+        deleteAfter: null,
+      },
+    },
     { upsert: true },
   );
   return result.upsertedCount === 1;
@@ -122,3 +139,19 @@ export const readKeystore = async (
     secrets: { ...parsed, keystore: Buffer.from(parsed.keystore, 'base64') },
   };
 };
+
+export const ERASE_GRACE_DAYS = 7;
+
+/** Starts the 7-day wait before a key is erased. A second call keeps the first date. */
+export const scheduleErase = async (keystores: Keystores, filter: Partial<Pick<KeystoreRecord, 'appId' | 'ownerId'>>, now = new Date()) => {
+  const when = new Date(now.getTime() + ERASE_GRACE_DAYS * 24 * 60 * 60 * 1000);
+  const result = await keystores.updateMany({ ...filter, deleteAfter: null }, { $set: { deleteAfter: when } });
+  return result.modifiedCount;
+};
+
+/** Erases the keys whose wait is over. */
+export const eraseDue = async (keystores: Keystores, now = new Date()) =>
+  (await keystores.deleteMany({ deleteAfter: { $ne: null, $lte: now } })).deletedCount;
+
+/** `AA:BB:CC` as `aabbcc`, the form `apksigner` prints. */
+export const plainHex = (fingerprint: string) => fingerprint.replaceAll(':', '').toLowerCase();

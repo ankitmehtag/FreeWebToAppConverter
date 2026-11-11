@@ -9,6 +9,7 @@ import { installRouter } from './builds/install';
 import { buildsRouter } from './builds/routes';
 import type { Auth } from './auth';
 import { authRouter } from './auth/routes';
+import { keysRouter, type Keys } from './keystores/routes';
 import type { FetchUrl } from './url/fetcher';
 import { urlRouter } from './url/routes';
 import type { Screenshot } from './url/screenshot';
@@ -29,6 +30,8 @@ type AppOptions = {
   /** The unsafe-site list. Without it, those checks are skipped. */
   unsafe?: UnsafeChecker;
   reports?: Reports;
+  /** Premium signing keys. Off when no master key is set. */
+  keys?: Keys;
 };
 
 const probe = async (check: Check, timeoutMs: number) => {
@@ -46,7 +49,7 @@ const probe = async (check: Check, timeoutMs: number) => {
   }
 };
 
-export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps, builds, trustProxy, unsafe, reports, screenshot }: AppOptions) => {
+export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps, builds, trustProxy, unsafe, reports, screenshot, keys }: AppOptions) => {
   const app = express();
   app.disable('x-powered-by');
   // Only a named proxy may say who the visitor is, so a forged header can't dodge per-IP limits.
@@ -56,6 +59,7 @@ export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth,
   if (auth) app.use('/auth', authRouter(auth));
   if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl, unsafe, screenshot));
   if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl, builds, unsafe));
+  if (auth && keys) app.use('/keystores', keysRouter(auth, keys));
   if (auth && builds) {
     // Mounted first, because a phone opening an install link has no session.
     app.use('/builds/install', installRouter(auth, builds));

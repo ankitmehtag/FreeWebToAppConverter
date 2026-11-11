@@ -10,7 +10,10 @@ import { render } from './render';
 import { artifactKey, FREE_RETENTION_DAYS, type Storage } from './storage';
 import { ensureFirebaseApp, topicFor, type ServiceAccount } from '@sitetoapk/shared/firebase';
 import type { Notifier } from './notify';
-import { checkBuild } from './verify';
+import { checkBuild, checkBundle } from './verify';
+import { ownKeyFor } from './keygen';
+import { planOf, type Plan } from '@sitetoapk/shared';
+import { plainHex, type Keyring, type Keystores } from '@sitetoapk/shared/keystore';
 
 export type Run = typeof runContainer;
 
@@ -38,6 +41,9 @@ export type BuildDeps = {
   notify?: Notifier;
   /** Registers apps with push notifications. Without it, builds that ask for push fail. */
   firebase?: ServiceAccount;
+  /** Premium apps sign with their own key, kept here and sealed with the master key. Without them, Premium builds fail. */
+  keystores?: Keystores;
+  ring?: Keyring;
 };
 
 const VERIFY_TIMEOUT_MS = 120000;
@@ -84,16 +90,24 @@ const prepareSecrets = async (dir: string, signing: Signing) => {
   for (const file of ['key.jks', 'store.pass', 'key.pass']) await chmod(join(dir, file), 0o644);
 };
 
-const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, workDir: string, onLine: (line: string) => void) => {
+const compile = async (
+  deps: BuildDeps,
+  build: BuildRequest,
+  plan: Plan,
+  signing: Signing,
+  buildId: string,
+  workDir: string,
+  onLine: (line: string) => void,
+) => {
   const secretsDir = join(workDir, 'secrets');
   const outputDir = join(workDir, 'output');
   await mkdir(outputDir);
   await chmod(outputDir, 0o777);
-  await prepareSecrets(secretsDir, deps.signing);
+  await prepareSecrets(secretsDir, signing);
 
   const iconPath = await iconFor(deps, build, workDir);
   const firebase = build.config.ui.push ? await firebaseFor(deps, build) : undefined;
-  const { dir, gradleArgs } = await render({ ...build, iconPath, firebase, parentDir: workDir }).catch((error: Error) => {
+  const { dir, gradleArgs } = await render({ ...build, plan, iconPath, firebase, parentDir: workDir }).catch((error: Error) => {
     throw new BuildFailure('input', `Invalid input: ${error.message}`);
   });
   await chmod(workDir, 0o755);
@@ -104,7 +118,8 @@ const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, wo
     '-PkeystorePath=/secrets/key.jks',
     '-PkeystorePassFile=/secrets/store.pass',
     '-PkeyPassFile=/secrets/key.pass',
-    `-PkeyAlias=${deps.signing.keyAlias}`,
+    `-PkeyAlias=${signing.keyAlias}`,
+    ...(plan === 'premium' ? ['-PbuildBundle=true'] : []),
   ];
   const mounts = { generatedDir: dir, secretsDir, outputDir, image: deps.image, buildId };
   const result = await deps.run({ ...mounts, args, timeoutMs: deps.timeoutMs, onLine });
@@ -119,7 +134,7 @@ const compile = async (deps: BuildDeps, build: BuildRequest, buildId: string, wo
 
 type Mounts = BuildMounts & { image: string; buildId: string };
 
-const verify = async (deps: BuildDeps, build: BuildRequest, mounts: Mounts, apk: string) => {
+const verify = async (deps: BuildDeps, build: BuildRequest, plan: Plan, signing: Signing, mounts: Mounts, apk: string, aab: string) => {
   // A second container, so that a build can't vouch for itself.
   const facts = await deps.run({
     ...mounts,
@@ -134,11 +149,24 @@ const verify = async (deps: BuildDeps, build: BuildRequest, mounts: Mounts, apk:
       packageName: build.config.packageName,
       versionCode: build.versionCode,
       versionName: build.versionName,
-      signerSha256: deps.signing.signerSha256,
+      signerSha256: signing.signerSha256,
     });
+    if (plan === 'premium') {
+      const bundleBytes = (await stat(aab).catch(() => ({ size: 0 }))).size;
+      checkBundle(facts.log, bundleBytes, signing.signerSha256);
+    }
   } catch (error) {
     throw new BuildFailure('check', `Check failed: ${(error as Error).message}`);
   }
+};
+
+/**
+ * The plan is read from the app when the build starts, not from the request, so a build asked for while an app
+ * was Premium is still Free if it was moved back before the worker began. Without an app record it is Free.
+ */
+const planFor = async (deps: BuildDeps, build: BuildRequest): Promise<Plan> => {
+  if (!build.appId || !deps.apps) return 'free';
+  return planOf(await deps.apps.findOne({ _id: build.appId }));
 };
 
 /** Runs one build. Throws UnrecoverableError when a retry could not help. */
@@ -151,8 +179,9 @@ export const processBuild = async (
   if (!build || ['success', 'failed', 'canceled'].includes(build.status)) return;
 
   const workDir = join(deps.workRoot, buildId);
-  const { signing, logs } = deps;
-  const redact = redactor([signing.storePassword, signing.keyPassword, signing.keystorePath, workDir, deps.workRoot, ...environmentSecrets()]);
+  const { logs } = deps;
+  const redactions = [deps.signing.storePassword, deps.signing.keyPassword, deps.signing.keystorePath, workDir, deps.workRoot, ...environmentSecrets()];
+  let redact = redactor(redactions);
   // Lines go out one after another, in the order the container wrote them.
   let sent = Promise.resolve();
   const onLine = (line: string) => {
@@ -173,13 +202,33 @@ export const processBuild = async (
     await removeContainer(containerName(buildId));
     await rm(workDir, { recursive: true, force: true });
     await mkdir(workDir, { recursive: true });
-    await move('building', { startedAt: new Date() });
+    const plan = await planFor(deps, build);
+    await move('building', { startedAt: new Date(), plan });
 
-    const { mounts, outputDir } = await compile(deps, build, buildId, workDir, onLine);
+    // Premium apps sign with their own key. Its passwords are kept out of the log like the shared key's.
+    let signing = deps.signing;
+    let own: Awaited<ReturnType<typeof ownKeyFor>> | undefined;
+    if (plan === 'premium') {
+      if (!deps.keystores || !deps.ring || !build.appId) throw new BuildFailure('input', 'Premium signing is not available right now');
+      own = await ownKeyFor({ run: deps.run, image: deps.image, keystores: deps.keystores, ring: deps.ring }, build.appId, build.ownerId, workDir, buildId);
+      const keystorePath = join(workDir, 'own-key.jks');
+      await writeFile(keystorePath, own.secrets.keystore, { mode: 0o600 });
+      signing = {
+        keystorePath,
+        storePassword: own.secrets.storePassword,
+        keyPassword: own.secrets.keyPassword,
+        keyAlias: own.secrets.alias,
+        signerSha256: plainHex(own.sha256),
+      };
+      redact = redactor([...redactions, signing.storePassword, signing.keyPassword, keystorePath]);
+    }
+
+    const { mounts, outputDir } = await compile(deps, build, plan, signing, buildId, workDir, onLine);
     const apk = join(outputDir, 'app-release.apk');
+    const aab = join(outputDir, 'app-release.aab');
 
     await move('signing');
-    await verify(deps, build, mounts, apk);
+    await verify(deps, build, plan, signing, mounts, apk, aab);
 
     // A takedown during the build must not let it publish an APK.
     if (build.appId && (await deps.apps?.findOne({ _id: build.appId }))?.takenDown) {
@@ -188,11 +237,21 @@ export const processBuild = async (
 
     await move('uploading');
     const sha256 = createHash('sha256').update(await readFile(apk)).digest('hex');
-    const key = artifactKey(build.plan, buildId);
+    const key = artifactKey(plan, buildId);
     const artifactBytes = await deps.storage.put(key, apk);
-    const expiresAt = new Date(Date.now() + FREE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    // Premium files are kept while the account is active, so they have no expiry date.
+    const expiresAt = plan === 'premium' ? null : new Date(Date.now() + FREE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    const premiumFields: Record<string, unknown> = {};
+    if (plan === 'premium' && own) {
+      const aabKey = artifactKey(plan, buildId, 'aab');
+      premiumFields.aabKey = aabKey;
+      premiumFields.aabBytes = await deps.storage.put(aabKey, aab, 'aab');
+      premiumFields.aabSha256 = createHash('sha256').update(await readFile(aab)).digest('hex');
+      premiumFields.signerSha1 = own.sha1;
+      premiumFields.signerSha256 = own.sha256;
+    }
 
-    await move('success', { artifactKey: key, artifactBytes, sha256, expiresAt });
+    await move('success', { artifactKey: key, artifactBytes, sha256, expiresAt, ...premiumFields });
     // Only the first success sets it, so the lock records when the package name became fixed.
     if (build.appId) await deps.apps?.updateOne({ _id: build.appId, lockedAt: null }, { $set: { lockedAt: new Date() } });
   } catch (error) {

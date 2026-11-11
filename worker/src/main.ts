@@ -6,7 +6,9 @@ import { removeAllBuildContainers, runContainer } from './container';
 import { createLogSink } from './logs';
 import { assertImageMatches } from './image';
 import { startWorker } from './queue';
-import { createNotifier } from './notify';
+import { createMailer, createNotifier } from './notify';
+import { keyUpkeep } from './key-upkeep';
+import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import { serviceAccountFromEnv } from '@sitetoapk/shared/firebase';
 import { reap } from './reaper';
 import { requireEnv, storageFromEnv } from './env';
@@ -29,6 +31,21 @@ const notify = mailKey
   ? createNotifier({ users: mongo.db().collection('users'), apiKey: mailKey, from: requireEnv('MAIL_FROM'), appUrl: requireEnv('APP_URL') })
   : undefined;
 
+// Premium apps sign with their own key. Without the master key they cannot be built, and Free builds go on.
+const ring = process.env.KEYSTORE_MASTER_KEY ? parseKeyring(process.env.KEYSTORE_MASTER_KEY) : undefined;
+const keystores = await prepareKeystores(mongo.db());
+
+const KEY_UPKEEP_INTERVAL_MS = 60 * 60 * 1000;
+if (mailKey) {
+  const mail = createMailer({ apiKey: mailKey, from: requireEnv('MAIL_FROM') });
+  const upkeep = () =>
+    keyUpkeep({ keystores, users: mongo.db().collection('users'), apps, mail, appUrl: requireEnv('APP_URL') }).catch((error) =>
+      console.error('Key upkeep failed', error),
+    );
+  void upkeep();
+  setInterval(() => void upkeep(), KEY_UPKEEP_INTERVAL_MS);
+}
+
 const reaperDeps = { builds, timeoutMs, workRoot };
 const leftovers = await removeAllBuildContainers();
 if (leftovers) console.log(`Removed ${leftovers} build container(s) left by a previous worker`);
@@ -42,6 +59,8 @@ const worker = startWorker(
     logs,
     notify,
     firebase: serviceAccountFromEnv(),
+    keystores,
+    ring,
     run: runContainer,
     image,
     timeoutMs,

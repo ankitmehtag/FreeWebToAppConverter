@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { ObjectId, type Collection, type Document } from 'mongodb';
 import { z } from 'zod';
-import { toAppConfig } from '@sitetoapk/shared';
-import { createBuild, queueBuild, setStatus } from '@sitetoapk/shared/builds';
+import { planOf, toAppConfig } from '@sitetoapk/shared';
+import { createBuild, isExpired, queueBuild, setStatus } from '@sitetoapk/shared/builds';
 import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } from '../abuse/unsafe';
 import type { Auth } from '../auth';
 import { buildIconKey } from '../apps/icons';
@@ -20,6 +20,7 @@ export const startRequest = z.strictObject({
 });
 
 export const buildView = (build: Document) => ({
+  plan: planOf(build),
   id: String(build._id),
   appId: build.appId ? String(build.appId) : undefined,
   status: build.status,
@@ -29,7 +30,9 @@ export const buildView = (build: Document) => ({
   artifactBytes: build.artifactBytes,
   sha256: build.sha256,
   expiresAt: build.expiresAt,
-  expired: Boolean(build.status === 'success' && (!build.artifactKey || build.expiresAt <= new Date())),
+  expired: Boolean(build.status === 'success' && (!build.artifactKey || isExpired(build as never))),
+  aab: build.aabKey ? { bytes: build.aabBytes, sha256: build.aabSha256 } : undefined,
+  signer: build.signerSha256 ? { sha1: build.signerSha1, sha256: build.signerSha256 } : undefined,
   removed: Boolean(build.artifactDeletedAt),
   createdAt: build.createdAt,
   updatedAt: build.updatedAt,
@@ -128,7 +131,7 @@ export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUr
       await createBuild(builds, {
         _id: id,
         config: appConfig,
-        plan: 'free',
+        plan: planOf(app),
         versionCode: 0,
         versionName: versionName ?? previous?.versionName ?? '1.0',
         iconKey: buildIconKey(id),

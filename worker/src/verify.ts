@@ -18,3 +18,11 @@ export const checkBuild = (facts: string, bytes: number, expected: ExpectedBuild
   if (fact(facts, /versionName='([^']+)'/) !== expected.versionName) throw new Error('Wrong version name');
   if (fact(facts, /SHA-256 digest: ([0-9a-f]{64})/) !== expected.signerSha256) throw new Error('Wrong signer');
 };
+
+/** Checks the bundle: it passed `bundletool validate`, and it carries the same signer as the key made for the app. */
+export const checkBundle = (facts: string, bytes: number, signerSha256: string) => {
+  if (bytes < MIN_APK_BYTES || bytes > MAX_APK_BYTES) throw new Error(`Unexpected bundle size: ${bytes}`);
+  if (!/^AAB valid$/m.test(facts)) throw new Error('The bundle is not valid');
+  const signer = /^AAB SHA256: ([0-9A-F:]{95})$/m.exec(facts)?.[1];
+  if (!signer || signer.replaceAll(':', '').toLowerCase() !== signerSha256) throw new Error('Wrong bundle signer');
+};

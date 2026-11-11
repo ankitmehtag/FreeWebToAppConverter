@@ -38,3 +38,15 @@ export const createNotifier = ({ users, apiKey, from, appUrl }: NotifyOptions): 
     console.error('Build email failed', (error as Error).message);
   }
 };
+
+export type Mailer = (to: string, subject: string, text: string) => Promise<void>;
+
+/** Sends a plain email through Resend. It throws when Resend refuses, so a caller can try again later. */
+export const createMailer = ({ apiKey, from }: { apiKey: string; from: string }): Mailer => async (to, subject, text) => {
+  const response = await fetch(RESEND_URL, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ from, to, subject, text }),
+  });
+  if (!response.ok) throw new Error(`Email answered ${response.status}`);
+};

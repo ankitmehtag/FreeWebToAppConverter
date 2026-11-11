@@ -81,3 +81,7 @@ export type LogLine = { n: number; text: string };
 export type BuildEvent =
   | ({ type: 'line' } & LogLine)
   | { type: 'status'; status: string; failureKind?: FailureKind };
+
+/** Free builds expire at `expiresAt`. Premium builds are kept, so they have none. */
+export const isExpired = (build: { plan?: string; expiresAt?: Date | null }, now = new Date()) =>
+  build.plan === 'premium' ? false : !build.expiresAt || build.expiresAt <= now;

@@ -145,7 +145,13 @@ export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, 
     const app = filter && (await apps.findOne(filter));
     if (!app) return notFound(res);
     const latest = await latestBuilds(ownerOf(res), [app._id]);
-    res.json(view(app, latest.get(String(app._id))));
+    // Installs of a Free build can't update to a Premium one, which uses the app's own key.
+    const reinstallWarning =
+      Boolean(builds) &&
+      planOf(app) === 'premium' &&
+      (app.buildCount ?? 0) > 0 &&
+      !(await builds!.builds.findOne({ appId: app._id, plan: 'premium' }, { projection: { _id: 1 } }));
+    res.json({ ...view(app, latest.get(String(app._id))), reinstallWarning });
   });
 
   router.get('/:id/builds', async (req, res) => {

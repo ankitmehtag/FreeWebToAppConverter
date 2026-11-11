@@ -24,15 +24,19 @@ RUN echo "e025545c62a8e64c7559119566a569fb1dec5f60  /tmp/tools.zip" | sha1sum -c
   && yes | sdkmanager --licenses > /dev/null \
   && sdkmanager "platforms;android-35" "build-tools;35.0.0" "build-tools;34.0.0" > /dev/null
 
+# Checks the bundle a Premium build makes.
+ADD --checksum=sha256:2d4ad908faea64047c1cc9cb747e6aa667c6ab192e09607bd16b67246a8cd6ae \
+  https://github.com/google/bundletool/releases/download/1.17.2/bundletool-all-1.17.2.jar /opt/bundletool.jar
+
 COPY app /opt/template/app
 COPY gradle /opt/template/gradle
 COPY sample /opt/template/sample
 COPY build.gradle.kts settings.gradle.kts gradle.properties version.json /opt/template/
-COPY builder/build.sh builder/verify.sh /opt/builder/
+COPY builder/build.sh builder/verify.sh builder/keygen.sh /opt/builder/
 
 # Fills the dependency cache once, then keeps only the part that is safe to share read-only.
 RUN cd /opt/template \
-  && GRADLE_USER_HOME=/tmp/gradle-warm gradle assembleRelease --no-daemon --console=plain \
+  && GRADLE_USER_HOME=/tmp/gradle-warm gradle assembleRelease bundleRelease --no-daemon --console=plain \
     -PapplicationId=com.sitetoapk.warm -PversionCode=1 -PversionName=1.0 -PgeneratedDir=/opt/template/sample \
   && mkdir -p /opt/gradle-ro/modules-2 \
   && cp -r /tmp/gradle-warm/caches/modules-2/files-2.1 /tmp/gradle-warm/caches/modules-2/metadata-* /opt/gradle-ro/modules-2/ \
