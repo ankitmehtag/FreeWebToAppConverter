@@ -11,7 +11,7 @@
 ## Slices
 - [x] T1: Plan and price module, `orders` and `providerEvents` collections with indexes, app plan field (R1, R2)
   - Tests first: AC2, AC3
-- [ ] T2: `PaymentProvider` interface and the Razorpay provider: create checkout, fetch status (R4, R6)
+- [x] T2: `PaymentProvider` interface and the Razorpay provider: create checkout, fetch status (R4, R6)
   - Tests first: AC1
 - [ ] T3: Checkout API and the Review-step buy button, with ownership, one-order-per-app and rate limit (R4, R5, R7, R24)
   - Tests first: AC1, AC2, AC3
