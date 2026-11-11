@@ -109,7 +109,9 @@ export const Home = () => {
     <main className="home">
       <section className="hero">
         <div className="hero-text">
-          <h1>Your website, as an Android app.</h1>
+          <h1>
+            Your website, as an <span className="hero-accent">Android app.</span>
+          </h1>
           <p className="lede">
             Paste your site’s address. Get a signed APK you can install on any Android phone today, with your own name, icon and
             colours. Free.
@@ -119,6 +121,11 @@ export const Home = () => {
               setPreview(check.reachable && check.https ? { url, embeddable: check.embeddable, name: hostOf(url) } : null)
             }
           />
+          <ul className="hero-points">
+            <li>Free</li>
+            <li>Signed APK</li>
+            <li>No Play Store needed</li>
+          </ul>
           {me && (
             <p className="field-hint">
               Signed in as {me.email}. <Link to="/my-apps">Go to your apps</Link>
@@ -157,8 +164,8 @@ export const Home = () => {
       <section className="band" aria-labelledby="features">
         <h2 id="features">What your app does</h2>
         <ul className="features">
-          {FEATURES.map((feature) => (
-            <li key={feature.title}>
+          {FEATURES.map((feature, index) => (
+            <li key={feature.title} data-n={String(index + 1).padStart(2, '0')}>
               <strong>{feature.title}</strong>
               <span>{feature.text}</span>
             </li>
@@ -178,6 +185,7 @@ export const Home = () => {
 
       <section className="band closing">
         <h2>Ready when your site is.</h2>
+        <p>Paste your address, pick a name and a colour, and have an app on your phone in about five minutes.</p>
         <Link className="button" to={me ? '/my-apps' : '/sign-up'}>{me ? 'Go to your apps' : 'Create a free account'}</Link>
       </section>
     </main>
