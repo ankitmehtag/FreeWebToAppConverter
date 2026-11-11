@@ -11,7 +11,7 @@
 ## Slices
 - [x] T1: `plan` field, the single writer function, and the owner's `set-plan` script, with Free as default (R1, R2)
   - Tests first: AC1
-- [ ] T2: Encryption helper for AES-256-GCM with IV and key id, and the `keystores` collection with a unique `appId` (R5)
+- [x] T2: Encryption helper for AES-256-GCM with IV and key id, and the `keystores` collection with a unique `appId` (R5)
   - Tests first: AC4
 - [ ] T3: Create the keystore on the first Premium build, safe against retries and parallel builds (R3, R4)
   - Tests first: AC2, AC3
