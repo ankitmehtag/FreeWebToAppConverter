@@ -45,7 +45,7 @@ Let a signed-in user buy Premium for one app, pay in INR through Razorpay or in 
 - R19: A 100 percent coupon must still create an order and an entitlement through the same path, without calling a provider, so it appears in records.
 
 ### Receipts, tax and records
-- R20: Each paid order must produce a receipt with a sequential number, the buyer's email, the app, the amount, the currency, the tax shown separately if any, and the date, emailed through Resend and viewable in the account.
+- R20: Each paid order must produce a receipt with a sequential number, the buyer's email, the app, the amount, the currency, the tax shown separately if any (none while the seller has no GST registration, and the receipt must not call itself a tax invoice), and the date, emailed through Resend and viewable in the account.
 - R21: Orders, events and refunds must be kept, and must not be deleted when an account is deleted. They must lose only the personal fields allowed by the law that requires keeping them.
 
 ### Safety and abuse
@@ -72,7 +72,7 @@ Let a signed-in user buy Premium for one app, pay in INR through Razorpay or in 
 
 ## Open questions
 - Q1: Decided by the owner on 2026-11-12: Free is 0, Premium is ₹99 or US$1 per app. Note: Stripe's fixed fee per card charge (about US$0.30 plus a percentage) would take roughly a third of a US$1 sale. Revisit the USD price, or Stripe at all, when F14 is built.
-- Q2: Is the seller registered for GST in India? This decides whether receipts must be GST invoices with a GSTIN, or plain receipts. Proposed: plain receipts with the tax line empty until the owner confirms registration, then GST invoices.
+- Q2: Decided by the owner on 2026-11-12: the seller has no GST registration yet. Receipts are plain receipts with no tax line and no GSTIN, and must not be called tax invoices. When the owner registers, receipts switch to GST invoices (a later change to R20).
 - Q3: Does the owner's business have Razorpay approved, and can it take Stripe (India accounts can be restricted)? Proposed: build Razorpay first, add Stripe behind the same interface, and ship INR-only if Stripe is not available.
 - Q4: Refund window? Proposed: 7 days for a full refund if no AAB or keystore has been downloaded.
 - Q5: Cost: both providers charge per transaction only, with no monthly fee (typically about 2 to 3 percent plus tax, higher for international cards). No other cost is added by F14. Proposed: manual receipts, no paid tax service.
