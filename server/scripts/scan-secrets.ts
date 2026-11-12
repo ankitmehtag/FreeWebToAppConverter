@@ -1,6 +1,6 @@
 // Looks for payment keys, secrets and card numbers. Usage: scan-secrets.ts <file or folder>...
 // Prints file:line and the kind of match, never the match itself. Exits 1 when it finds anything.
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { lstat, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -48,8 +48,9 @@ const SKIP_FILES = /(^|\/)(package-lock\.json|.*\.(png|jpg|jpeg|gif|webp|ico|jar
 export const scanPaths = async (paths: string[]): Promise<Finding[]> => {
   const found: Finding[] = [];
   const visit = async (path: string) => {
-    const info = await stat(path).catch(() => null);
-    if (!info) return;
+    // lstat, and regular files only: a pipe, device or link in an image layer would block a read or lead out of the folder.
+    const info = await lstat(path).catch(() => null);
+    if (!info || (!info.isFile() && !info.isDirectory())) return;
     if (info.isDirectory()) {
       for (const name of await readdir(path)) if (!SKIP_DIRS.has(name)) await visit(join(path, name));
       return;

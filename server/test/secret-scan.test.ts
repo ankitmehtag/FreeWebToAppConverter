@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ObjectId } from 'mongodb';
@@ -42,6 +42,15 @@ describe('AC14: the scanner finds what it should', () => {
     expect(kinds(`sha ${'a'.repeat(20)}${card}${'b'.repeat(8)}`)).toEqual([]);
     expect(kinds('version 1.2.3456789012345')).toEqual([]);
   });
+
+  it('skips links and pipes instead of hanging on them', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'scan-'));
+    await writeFile(join(dir, 'real.txt'), `${razorpayKey}\n`);
+    await symlink('/dev/zero', join(dir, 'link-to-device'));
+    execFileSync('mkfifo', [join(dir, 'pipe')]);
+    const findings = await scanPaths([dir]);
+    expect(findings.map((finding) => finding.file)).toEqual([join(dir, 'real.txt')]);
+  }, 10_000);
 
   it('reports where, and never what', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'scan-'));
