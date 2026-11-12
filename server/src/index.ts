@@ -3,6 +3,7 @@ import { Redis } from 'ioredis';
 import { QUEUE_NAME } from '@sitetoapk/shared/builds';
 import { MongoClient } from 'mongodb';
 import { createApp } from './app';
+import { prepareAdmin } from './admin';
 import { prepareApps } from './apps';
 import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import { createIconStore } from './apps/icons';
@@ -134,6 +135,8 @@ const app = createApp({
     ? { keystores: await prepareKeystores(mongo.db()), downloads: mongo.db().collection('keystoreDownloads'), ring: parseKeyring(process.env.KEYSTORE_MASTER_KEY) }
     : undefined,
   payments,
+  // Off until an admin email is named.
+  admin: process.env.ADMIN_EMAILS ? await prepareAdmin({ db: mongo.db(), auth, adminEmails: process.env.ADMIN_EMAILS.split(',') }) : undefined,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
   unsafe: process.env.WEB_RISK_API_KEY ? createUnsafeChecker(redis, webRiskLookup(process.env.WEB_RISK_API_KEY)) : undefined,

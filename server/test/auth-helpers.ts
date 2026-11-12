@@ -1,4 +1,5 @@
 import { createHmac, randomBytes } from 'node:crypto';
+import { expect } from 'vitest';
 import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import type { Screenshot } from '../src/url/screenshot';
 import { randomUUID } from 'node:crypto';
@@ -11,6 +12,8 @@ import { prepareOrders } from '../src/payments/orders';
 import type { Payments } from '../src/payments/routes';
 import { verifyRazorpayWebhook } from '../src/payments/razorpay';
 import type { CheckoutInput, PaymentProvider } from '../src/payments/provider';
+import { prepareAdmin } from '../src/admin';
+import { codeNow, newSecret, seal } from '../src/admin/totp';
 import { createApp } from '../src/app';
 import { prepareApps } from '../src/apps';
 import { createIconStore } from '../src/apps/icons';
@@ -24,6 +27,7 @@ import type { FetchUrl } from '../src/url/fetcher';
 
 export const APP_URL = 'http://app.test';
 export const WEBHOOK_SECRET = 'whsec_test_secret';
+export const ADMIN_EMAIL = 'admin@example.com';
 export const KEY_SECRET = 'key_secret_for_tests';
 
 // The local S3 from Compose stands in for R2. Its credentials are local only.
@@ -113,7 +117,8 @@ export const makeHarness = async (
     verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(WEBHOOK_SECRET, rawBody, headers),
   };
   const payments = { ...pay, apps: apps.apps, users: db.collection('users'), keystores: keystores as never, builds: builds.builds, mailer: { send: async (mail: Mail) => void sent.push(mail) }, providers: { razorpay: razorpayFake } as Payments['providers'] };
-  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring }, payments }).listen(0);
+  const admin = await prepareAdmin({ db, auth, adminEmails: [ADMIN_EMAIL] });
+  const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring }, payments, admin }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
@@ -166,6 +171,7 @@ export const makeHarness = async (
   };
 
   return {
+    admin,
     url, client, sent, mailTo, tokenIn, db, redis,
     users: db.collection('users'),
     apps: apps.apps,
@@ -201,4 +207,16 @@ export const signedIn = async (harness: Awaited<ReturnType<typeof makeHarness>>,
   await user.post('/auth/register', { email, password: PASSWORD });
   await user.post('/auth/login', { email, password: PASSWORD });
   return user;
+};
+
+/** Signs the admin in with a password and, unless told otherwise, the second step too. */
+export const adminIn = async (harness: Awaited<ReturnType<typeof makeHarness>>, { twoFactor = true } = {}) => {
+  const user = await signedIn(harness, ADMIN_EMAIL);
+  const secret = newSecret();
+  await harness.users.updateOne({ email: ADMIN_EMAIL }, { $set: { emailVerifiedAt: new Date() } });
+  const found = await harness.users.findOne({ email: ADMIN_EMAIL });
+  await harness.admin.state.replaceOne({ _id: found!._id }, { _id: found!._id, sealed: seal('test-secret-test-secret-test-secret-test', secret) }, { upsert: true });
+  await harness.redis.del(`admin:2fa:${String(found!._id)}`);
+  if (twoFactor) expect((await user.post('/admin/api/2fa/verify', { code: codeNow(secret) })).status).toBe(204);
+  return { user, secret, id: found!._id };
 };

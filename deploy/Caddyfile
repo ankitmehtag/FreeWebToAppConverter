@@ -5,13 +5,16 @@
 
 	# Caddy sets X-Forwarded-For from the real connection and drops any the visitor sent,
 	# so the API (TRUST_PROXY) only ever believes Caddy.
-	@api path /auth /auth/* /apps /apps/* /url /url/* /builds /builds/* /reports /reports/* /keystores /keystores/* /payments /payments/* /health
+	@api path /auth /auth/* /apps /apps/* /url /url/* /builds /builds/* /reports /reports/* /keystores /keystores/* /payments /payments/* /admin/api/* /health
 	handle @api {
 		reverse_proxy api:3000 {
 			# Live build logs are Server-Sent Events, so nothing may be held back.
 			flush_interval -1
 		}
 	}
+
+	# The panel's page is a normal page of the site, kept out of search.
+	header /admin* X-Robots-Tag "noindex, nofollow"
 
 	handle {
 		root * /srv/site

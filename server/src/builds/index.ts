@@ -41,7 +41,7 @@ const createHub = (redis: Redis) => {
   };
 };
 
-type BuildsOptions = { db: Db; redis: Redis; queue: Pick<Queue, 'add'>; storage: IconStore; config: BuildsConfig };
+type BuildsOptions = { db: Db; redis: Redis; queue: Pick<Queue, 'add' | 'remove'>; storage: IconStore; config: BuildsConfig };
 
 /** Creates indexes and returns what the build routes need. */
 export const prepareBuilds = async ({ db, redis, queue, storage, config }: BuildsOptions) => {

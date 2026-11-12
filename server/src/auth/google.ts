@@ -95,6 +95,7 @@ export const finishGoogle = async (auth: Auth, google: GoogleConfig, req: Reques
   res.clearCookie(FLOW_COOKIE, { path: '/auth/google' });
   try {
     const userId = await findOrLinkUser(auth, await readClaims(auth, google, req));
+    if ((await auth.users.findOne({ _id: userId }))?.disabledAt) throw new Error('Account disabled');
     await startSession(auth, res, userId);
     res.redirect(auth.config.appUrl);
   } catch {

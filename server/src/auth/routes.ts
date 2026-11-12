@@ -77,8 +77,8 @@ export const authRouter = (auth: Auth) => {
     const locked = await isLocked(auth, body.email);
     const user = await auth.users.findOne({ email: body.email });
     const matches = await bcrypt.compare(body.password, user?.passwordHash ?? auth.dummyHash);
-    if (!user?.passwordHash || !matches || locked) {
-      if (!locked) await recordFailure(auth, body.email, ip);
+    if (!user?.passwordHash || !matches || locked || user.disabledAt) {
+      if (!locked && !user?.disabledAt) await recordFailure(auth, body.email, ip);
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }

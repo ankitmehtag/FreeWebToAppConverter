@@ -2,6 +2,8 @@ import express from 'express';
 import helmet from 'helmet';
 import { reportsRouter, type Reports } from './abuse/reports';
 import type { UnsafeChecker } from './abuse/unsafe';
+import type { Admin } from './admin';
+import { adminRouter } from './admin/routes';
 import type { Apps } from './apps';
 import { appsRouter } from './apps/routes';
 import type { Builds } from './builds';
@@ -36,6 +38,8 @@ type AppOptions = {
   keys?: Keys;
   /** Premium checkout. Off when no payment provider is set. */
   payments?: Payments;
+  /** The admin panel. Off when no admin email is set. */
+  admin?: Admin;
 };
 
 const probe = async (check: Check, timeoutMs: number) => {
@@ -53,7 +57,7 @@ const probe = async (check: Check, timeoutMs: number) => {
   }
 };
 
-export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps, builds, trustProxy, unsafe, reports, screenshot, keys, payments }: AppOptions) => {
+export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth, fetchUrl, apps, builds, trustProxy, unsafe, reports, screenshot, keys, payments, admin }: AppOptions) => {
   const app = express();
   app.disable('x-powered-by');
   // Only a named proxy may say who the visitor is, so a forged header can't dodge per-IP limits.
@@ -63,6 +67,7 @@ export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth,
   if (auth) app.use('/auth', authRouter(auth));
   if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl, unsafe, screenshot));
   if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl, builds, unsafe));
+  if (admin) app.use('/admin/api', adminRouter({ admin, builds, apps, payments }));
   if (auth && keys) app.use('/keystores', keysRouter(auth, keys));
   // Webhooks first: they need the raw body and carry no session.
   if (payments) app.use('/payments/webhooks', webhooksRouter(payments));

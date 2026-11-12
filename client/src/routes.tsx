@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout } from './layout';
 import { ForgotPassword, ResetPassword, SignIn, SignUp, VerifyEmail } from './pages/account';
+import { Admin } from './pages/admin';
 import { AppsList } from './pages/apps';
 import { BuildPage } from './pages/build';
 import { Home } from './pages/home';
@@ -37,6 +38,7 @@ export const AppRoutes = () => (
       <Route path="pay/return" element={signedIn(<PayReturn />)} />
       <Route path="my-apps/:id/builds/:buildId" element={signedIn(<BuildPage />)} />
       <Route path="my-apps/:id/:step?" element={signedIn(<Wizard />)} />
+      <Route path="admin" element={signedIn(<Admin />)} />
       <Route path="install/:token" element={<InstallPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Route>
