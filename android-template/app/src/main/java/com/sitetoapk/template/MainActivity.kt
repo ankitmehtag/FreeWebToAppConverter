@@ -89,9 +89,11 @@ class MainActivity : AppCompatActivity() {
         webContainer.addView(webView)
         load(config.startUrl)
         Push.start(this, notificationPermission)
+        Ads.start(this, config.ads)
     }
 
     override fun onDestroy() {
+        Ads.stop()
         if (::webView.isInitialized) webView.destroy()
         super.onDestroy()
     }
@@ -207,6 +209,7 @@ class MainActivity : AppCompatActivity() {
 
         override fun onPageFinished(view: WebView, url: String) {
             firstPageShown = true
+            Ads.onPageFinished()
             refresh.isRefreshing = false
         }
 

@@ -40,6 +40,7 @@ export const Pricing = () => {
             <li>An Android App Bundle (AAB) ready for Google Play</li>
             <li>Your own signing key, kept for your app’s updates</li>
             <li>No watermark</li>
+            <li>Your own Google AdMob ads, a banner and full-screen ads, with a consent form where the law needs one</li>
           </ul>
           <p className="field-hint">
             A full refund within 7 days of payment, as long as you haven’t downloaded the signing key or the app bundle.

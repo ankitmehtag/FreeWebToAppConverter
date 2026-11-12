@@ -204,6 +204,8 @@ export const processBuild = async (
     await mkdir(workDir, { recursive: true });
     const plan = await planFor(deps, build);
     await move('building', { startedAt: new Date(), plan });
+    // The server refuses this at the start; the worker checks again because it is the one that compiles (F16 R1).
+    if (build.config.ads && plan !== 'premium') throw new BuildFailure('input', 'Ads are a Premium feature');
 
     // Premium apps sign with their own key. Its passwords are kept out of the log like the shared key's.
     let signing = deps.signing;

@@ -125,3 +125,27 @@ describe('push notifications', () => {
     expect(existsSync(join(without.dir, 'assets/firebase.json'))).toBe(false);
   });
 });
+
+describe('F16: ads in the render', () => {
+  const ads = { appId: 'ca-app-pub-1234567890123456~1234567890', bannerUnitId: 'ca-app-pub-1234567890123456/1111111111', bannerPosition: 'bottom' as const, interstitialGapSeconds: 180, childDirected: false };
+
+  it('an ads-off render passes no ad arguments', async () => {
+    const { gradleArgs } = await render(await input({ plan: 'premium' }));
+    expect(gradleArgs.join(' ')).not.toContain('ads');
+  });
+
+  it('a Premium render with ads passes the flag and the AdMob app ID, and writes the settings into the config', async () => {
+    const { gradleArgs, dir } = await render(await input({ plan: 'premium', config: { ...config, ads } }));
+    expect(gradleArgs).toContain('-PadsEnabled=true');
+    expect(gradleArgs).toContain(`-PadsAppId=${ads.appId}`);
+    expect(JSON.parse(readFileSync(join(dir, 'assets/app_config.json'), 'utf8')).ads).toEqual(ads);
+  });
+
+  it('refuses ads on Free before anything is written', async () => {
+    await expect(render(await input({ plan: 'free', config: { ...config, ads } }))).rejects.toThrow(/Premium/);
+  });
+
+  it('refuses an ID that could carry an argument', async () => {
+    await expect(render(await input({ plan: 'premium', config: { ...config, ads: { ...ads, appId: 'ca-app-pub-1234567890123456~1234567890 -Pevil=1' } } }))).rejects.toThrow();
+  });
+});

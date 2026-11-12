@@ -28,6 +28,45 @@
         "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+$"
       }
     },
+    "ads": {
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "pattern": "^ca-app-pub-(\\d{16})~\\d{10}$"
+        },
+        "bannerUnitId": {
+          "type": "string",
+          "pattern": "^ca-app-pub-(\\d{16})\\/\\d{10}$"
+        },
+        "interstitialUnitId": {
+          "type": "string",
+          "pattern": "^ca-app-pub-(\\d{16})\\/\\d{10}$"
+        },
+        "bannerPosition": {
+          "type": "string",
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "interstitialGapSeconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600
+        },
+        "childDirected": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "appId",
+        "bannerPosition",
+        "interstitialGapSeconds",
+        "childDirected"
+      ],
+      "additionalProperties": false
+    },
     "ui": {
       "type": "object",
       "properties": {

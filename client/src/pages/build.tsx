@@ -17,6 +17,8 @@ export type BuildView = {
   aab?: { bytes?: number; sha256?: string };
   /** The certificate this build is signed with, for Firebase, Google sign-in and assetlinks. */
   signer?: { sha1?: string; sha256?: string };
+  /** Present when the build has ads. `test` means Google's sample IDs, which earn nothing. */
+  ads?: { banner: boolean; interstitial: boolean; test: boolean };
   expiresAt?: string;
   expired: boolean;
   /** The APK was deleted by a takedown. */
@@ -198,12 +200,22 @@ export const BuildPage = () => {
               {build.aab ? ` APK · ${megabytes(build.aab.bytes)} AAB` : ''} · {build.expiresAt ? `kept until ${date(build.expiresAt)}` : 'kept while your account is active'}
             </span>
           </div>
+          <p className="field-hint">
+            Ads: {build.ads ? [build.ads.banner && 'banner', build.ads.interstitial && 'interstitial'].filter(Boolean).join(' + ') : 'none'}
+          </p>
+          {build.ads?.test && <div className="check check-bad" role="status"><p>This build shows Google test ads and earns nothing. Build again with your own AdMob IDs.</p></div>}
           <p className="field-hint">APK SHA-256 <span className="mono sha">{build.sha256}</span></p>
           {build.aab?.sha256 && <p className="field-hint">AAB SHA-256 <span className="mono sha">{build.aab.sha256}</span></p>}
           {build.signer && (
             <div className="stack">
               <p className="field-hint">Signing certificate SHA-1 <span className="mono sha">{build.signer.sha1}</span></p>
               <p className="field-hint">Signing certificate SHA-256 <span className="mono sha">{build.signer.sha256}</span></p>
+              {build.ads && (
+                <p className="field-hint">
+                  This app has ads. In Google Play Console, answer “Yes” to “Contains ads”, and declare that the app uses the advertising ID.
+                  Your privacy policy must say the app uses Google AdMob.
+                </p>
+              )}
               <p className="field-hint">
                 Upload the AAB to Google Play. With Play App Signing, the key we made for your app is your upload key, and Google may hold
                 the final signing key. Use the fingerprints above for Firebase, Google sign-in and app links.

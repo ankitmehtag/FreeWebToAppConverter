@@ -14,11 +14,14 @@ export const BuildPanel = ({
   latest,
   emailVerified,
   reinstallWarning = false,
+  adsNote,
 }: {
   appId: string;
   latest?: BuildView;
   emailVerified: boolean;
   reinstallWarning?: boolean;
+  /** What ads the next build will have, when it has any. */
+  adsNote?: string;
 }) => {
   const navigate = useNavigate();
   const [versionName, setVersionName] = useState(latest?.versionName ?? '1.0');
@@ -83,6 +86,7 @@ export const BuildPanel = ({
           This Premium build uses a new signing key. People who installed an earlier Free build must uninstall it before they can install this one.
         </label>
       )}
+      {adsNote && <p className="field-hint">This build will have ads: {adsNote}</p>}
       <p className="field-hint">
         {validVersion ? 'Shown to people as the app’s version, like 1.0 or 1.2.3. Free builds: 3 a day.' : 'Use digits and dots, like 1.0 or 1.2.3.'}
       </p>

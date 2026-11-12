@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
-import { DEFAULT_BEHAVIOUR, draftSchema, permissionsFor, suggestPackageName, toAppConfig, type Draft } from '@sitetoapk/shared';
+import { DEFAULT_BEHAVIOUR, draftSchema, isTestAdsId, permissionsFor, suggestPackageName, toAppConfig, type Draft } from '@sitetoapk/shared';
 import { api, ApiError, type FieldErrors } from '../api';
+import { AdsPanel } from '../ads-panel';
 import { BuildPanel } from '../build-panel';
 import { KeyPanel } from '../key-panel';
 import { PayPanel } from '../pay-panel';
@@ -17,6 +18,7 @@ const STEPS = [
   { id: 'basics', label: 'Basics' },
   { id: 'branding', label: 'Branding' },
   { id: 'behaviour', label: 'Behaviour' },
+  { id: 'ads', label: 'Monetization' },
   { id: 'review', label: 'Review' },
 ] as const;
 type StepId = (typeof STEPS)[number]['id'];
@@ -29,6 +31,10 @@ const MESSAGES: Record<string, string> = {
   packageName: 'Use lowercase words joined by dots, like com.example.app. Each word starts with a letter and can’t be a Java keyword.',
   'ui.statusBarColor': 'Pick a colour, or type it as #RRGGBB.',
   internalHosts: 'List each host on its own line, like shop.example.com.',
+  'ads.appId': 'Use the app ID from AdMob, like ca-app-pub-1234567890123456~1234567890.',
+  'ads.bannerUnitId': 'Use the unit ID from AdMob, like ca-app-pub-1234567890123456/1234567890, from the same account as the app ID.',
+  'ads.interstitialUnitId': 'Use the unit ID from AdMob, like ca-app-pub-1234567890123456/1234567890, from the same account as the app ID.',
+  'ads.interstitialGapSeconds': 'Use a whole number of seconds, from 60 to 3600.',
 };
 
 /** Checks the draft with the same rules as the server, and words each problem for people. */
@@ -42,6 +48,13 @@ const validate = (draft: Draft): FieldErrors => {
       return [field, MESSAGES[field] ?? 'Check this value.'];
     }),
   );
+};
+
+/** The review page's one-line answer to "does this build have ads". */
+const adsSummary = (ads: Draft['ads']) => {
+  if (!ads?.enabled) return 'None';
+  const kinds = [ads.bannerUnitId && 'banner', ads.interstitialUnitId && 'interstitial'].filter(Boolean).join(' + ');
+  return `${kinds || 'not complete yet'}${[ads.appId, ads.bannerUnitId, ads.interstitialUnitId].some(isTestAdsId) ? ' (Google test ads, no earnings)' : ''}`;
 };
 
 const hostOf = (url: string) => {
@@ -265,6 +278,7 @@ export const Wizard = () => {
     !draft.packageName && 'a package name',
     !draft.ui?.statusBarColor && 'a colour',
     !app.hasIcon && 'an icon',
+    draft.ads?.enabled && !config && 'the ad settings (an app ID and at least one ad unit)',
   ].filter(Boolean) as string[];
 
   const saveLabel = {
@@ -508,12 +522,22 @@ export const Wizard = () => {
             </div>
           )}
 
+          {step === 'ads' && (
+            <AdsPanel
+              premium={app.plan === 'premium'}
+              ads={draft.ads}
+              errors={errors}
+              onChange={(ads) => setField('ads', ads)}
+              onUpgrade={() => go('review')}
+            />
+          )}
+
           {step === 'review' && (
             <div className="stack">
               {app.ready && config ? (
                 !app.takenDown && (
                   <>
-                    <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} reinstallWarning={app.reinstallWarning} />
+                    <BuildPanel appId={id} latest={app.latestBuild} emailVerified={Boolean(me?.emailVerified)} reinstallWarning={app.reinstallWarning} adsNote={draft.ads?.enabled ? adsSummary(draft.ads) : undefined} />
                     {app.plan === 'premium' ? <KeyPanel appId={id} /> : <PayPanel appId={id} />}
                     {ui.push && app.locked && <PushPanel appId={id} />}
                   </>
@@ -527,6 +551,7 @@ export const Wizard = () => {
                 <dt>App name</dt><dd>{draft.appName ?? '—'}</dd>
                 <dt>Package name</dt><dd className="mono">{draft.packageName ?? '—'}</dd>
                 <dt>Opens inside the app</dt><dd className="mono">{(config?.internalHosts ?? draft.internalHosts ?? []).join(', ') || '—'}</dd>
+                <dt>Ads</dt><dd>{adsSummary(draft.ads)}</dd>
               </dl>
 
               <section>

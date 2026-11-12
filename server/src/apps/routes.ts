@@ -46,6 +46,8 @@ const takenDown = (res: Response, app: Document) =>
 const appFilter = (res: Response, id: unknown) =>
   typeof id === 'string' && /^[0-9a-f]{24}$/.test(id) ? { _id: new ObjectId(id), ownerId: ownerOf(res) } : null;
 
+const adsPremium = (res: Response) => res.status(403).json({ error: 'Ads are a Premium feature. Upgrade this app to turn them on.', reason: 'ads_premium' });
+
 const notFound = (res: Response) => res.status(404).json({ error: 'App not found' });
 
 const duplicateName = (res: Response) =>
@@ -113,6 +115,7 @@ export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, 
 
   router.post('/', csrf, async (req, res) => {
     const draft = draftSchema.parse(req.body);
+    if (draft.ads?.enabled) return adsPremium(res);
     const listed = await unsafeFields(unsafe, draft);
     if (listed) return res.status(400).json({ error: 'Invalid request', fields: listed });
     const ownerId = ownerOf(res);
@@ -189,6 +192,7 @@ export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, 
     const current = await apps.findOne(filter);
     if (!current) return notFound(res);
     if (current.takenDown) return takenDown(res, current);
+    if (draft.ads?.enabled && planOf(current) !== 'premium') return adsPremium(res);
     const listed = await unsafeFields(unsafe, draft, current.draft);
     if (listed) return res.status(400).json({ error: 'Invalid request', fields: listed });
 

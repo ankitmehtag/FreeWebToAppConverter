@@ -1,6 +1,7 @@
 // Builds the sample app with a builder image before it is rolled out, and fails if anything is wrong.
 // Usage: verify-image.ts <image>   (with the worker's signing settings and MONGO_URL)
 import { randomBytes, randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { copyFile, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -49,6 +50,20 @@ const storage: Storage = {
   readLifecycle: async () => [],
 };
 
+/** What the APK holds about ads: library classes in its code and the ad entries in its manifest (F16 R8). */
+const adFacts = (apk: string) => {
+  const unzip = (entry: string) => execFileSync('unzip', ['-p', apk, entry], { maxBuffer: 256 * 1024 * 1024 });
+  const dex = unzip('classes*.dex');
+  const manifest = unzip('AndroidManifest.xml');
+  // Binary manifests keep their strings in UTF-8 or UTF-16, so both are searched.
+  const has = (buffer: Buffer, text: string) => buffer.includes(text) || buffer.includes(Buffer.from(text, 'utf16le'));
+  return {
+    adClasses: has(dex, 'com/google/android/gms/ads') || has(dex, 'com/google/android/ump'),
+    adPermission: has(manifest, 'com.google.android.gms.permission.AD_ID'),
+    adAppId: has(manifest, 'com.google.android.gms.ads.APPLICATION_ID'),
+  };
+};
+
 const mongo = await new MongoClient(requireEnv('MONGO_URL')).connect();
 const builds = mongo.db().collection('verifyImageBuilds');
 const id = randomUUID();
@@ -78,6 +93,13 @@ try {
   const build = await builds.findOne({ _id: id as never });
   if (build?.status === 'success') {
     console.log(`PASS: signed by the expected key, package and version checked, ${build.artifactBytes} bytes, SHA-256 ${build.sha256}`);
+    const facts = adFacts(kept);
+    if (facts.adClasses || facts.adPermission || facts.adAppId) {
+      console.error(`FAIL: the ads-off sample holds ad code or entries: ${JSON.stringify(facts)}`);
+      process.exitCode = 1;
+    } else {
+      console.log('PASS: the ads-off APK has no ad library, no ad manifest entry and no advertising ID permission');
+    }
   } else {
     // Not process.exit, so the clean-up below still runs.
     console.error(`FAIL: sample build ${build?.status ?? 'missing'}: ${build?.error ?? 'no reason recorded'}`);
@@ -124,6 +146,60 @@ try {
       }
     } finally {
       await builds.deleteMany({ _id: premiumId as never });
+      await scratch.dropDatabase();
+    }
+  }
+
+  // The same sample as a Premium app with ads: signed, checked, and holding the ad library and its entries.
+  if (process.exitCode !== 1) {
+    const scratch = mongo.db('verify_image_ads');
+    const appId = new ObjectId();
+    const adsId = randomUUID();
+    const adsConfig = appConfigSchema.parse({
+      ...config,
+      ads: { appId: 'ca-app-pub-3940256099942544~3347511713', bannerUnitId: 'ca-app-pub-3940256099942544/9214589741', interstitialUnitId: 'ca-app-pub-3940256099942544/1033173712', bannerPosition: 'bottom', interstitialGapSeconds: 180, childDirected: false },
+    });
+    try {
+      await scratch.collection('apps').insertOne({ _id: appId, plan: 'premium' });
+      await createBuild(builds, { _id: adsId, config: adsConfig, iconPath, plan: 'premium', versionCode: 1, versionName: '1.0', appId });
+      console.log('Building the sample app as Premium with ads (Google test IDs)');
+      await processBuild(
+        {
+          builds,
+          apps: scratch.collection('apps'),
+          keystores: await prepareKeystores(scratch),
+          ring: parseKeyring(`1:${randomBytes(32).toString('base64')}`),
+          storage,
+          run: runContainer,
+          image,
+          timeoutMs: Number(process.env.BUILD_TIMEOUT_MS ?? 15 * 60 * 1000),
+          workRoot: join(work, 'builds-ads'),
+          signing: {
+            keystorePath: requireEnv('KEYSTORE_PATH'),
+            storePassword: requireEnv('KEYSTORE_PASSWORD'),
+            keyPassword: requireEnv('KEY_PASSWORD'),
+            keyAlias: requireEnv('KEY_ALIAS'),
+            signerSha256: requireEnv('SIGNER_SHA256'),
+          },
+        },
+        adsId,
+        { attemptsMade: 0, attempts: 1 },
+      ).catch(() => undefined);
+      const withAds = await builds.findOne({ _id: adsId as never });
+      if (withAds?.status !== 'success') {
+        console.error(`FAIL: ads sample build ${withAds?.status ?? 'missing'}: ${withAds?.error ?? 'no reason recorded'}`);
+        process.exitCode = 1;
+      } else {
+        const facts = adFacts(kept);
+        if (facts.adClasses && facts.adPermission && facts.adAppId) {
+          console.log(`PASS: the ads APK is signed and checked, ${withAds.artifactBytes} bytes, with the ad library, the AdMob app ID and the advertising ID permission`);
+        } else {
+          console.error(`FAIL: the ads APK is missing ad code or entries: ${JSON.stringify(facts)}`);
+          process.exitCode = 1;
+        }
+      }
+    } finally {
+      await builds.deleteMany({ _id: adsId as never });
       await scratch.dropDatabase();
     }
   }

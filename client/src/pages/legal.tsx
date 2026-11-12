@@ -123,7 +123,13 @@ export const Privacy = () => (
         password guessing and floods of requests.
       </li>
     </ul>
-    <p>We don’t use analytics or advertising, and we don’t sell your data.</p>
+    <p>This website doesn’t use analytics or advertising, and we don’t sell your data.</p>
+    <p>
+      <strong>Apps with ads:</strong> a Premium app whose owner turns ads on uses Google AdMob inside that app. Google may collect the
+      advertising ID and other data from the people who use it, under Google’s own policies, and asks them for consent where the law
+      requires it. The app’s owner is responsible for telling those people about it, in the app’s own privacy policy. Apps without
+      ads hold no advertising code.
+    </p>
 
     <h2>Cookies</h2>
     <p>

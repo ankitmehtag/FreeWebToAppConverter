@@ -60,6 +60,11 @@ export const render = async (input: RenderInput) => {
     `-PgeneratedDir=${dir}`,
   ];
   if (plan === 'premium') gradleArgs.push('-PremoveWatermark=true');
+  if (config.ads) {
+    // Defence in depth: the ID shapes were checked by the schema above, so nothing else can reach Gradle here.
+    if (plan !== 'premium') throw new Error('Ads are a Premium feature');
+    gradleArgs.push('-PadsEnabled=true', `-PadsAppId=${config.ads.appId}`);
+  }
 
   return { dir, gradleArgs };
 };

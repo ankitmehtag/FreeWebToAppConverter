@@ -17,6 +17,7 @@ data class AppConfig(
     val startUrl: String,
     val internalHosts: Set<String>,
     val ui: UiConfig,
+    val ads: AdsConfig? = null,
 ) {
     companion object {
         private val HOST = Regex("^[a-z0-9-]+(\\.[a-z0-9-]+)+$")
@@ -35,6 +36,13 @@ data class AppConfig(
 
                 val hosts = hosts(json.opt("internalHosts") as? JSONArray ?: return null) ?: return null
 
+                // Present only when the owner turned ads on. Anything present but invalid makes the whole config invalid.
+                val ads = when (val raw = json.opt("ads")) {
+                    null -> null
+                    is JSONObject -> AdsConfig.parse(raw) ?: return null
+                    else -> return null
+                }
+
                 val ui = json.opt("ui") as? JSONObject ?: return null
                 val color = (ui.opt("statusBarColor") as? String)?.takeIf(COLOR::matches) ?: return null
                 val orientation = (ui.opt("orientation") as? String)?.takeIf(ORIENTATIONS::contains)
@@ -43,6 +51,7 @@ data class AppConfig(
                 AppConfig(
                     startUrl = startUrl,
                     internalHosts = hosts,
+                    ads = ads,
                     ui = UiConfig(
                         statusBarColor = color,
                         orientation = orientation,

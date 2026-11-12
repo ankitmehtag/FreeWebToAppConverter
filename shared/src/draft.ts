@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { appConfigSchema, JAVA_RESERVED_WORDS, type AppConfig } from './app-config';
+import { adsDraftSchema, ADS_DEFAULT_GAP_SECONDS, appConfigSchema, JAVA_RESERVED_WORDS, type AppConfig } from './app-config';
 
 const fields = appConfigSchema.shape;
 
@@ -10,6 +10,7 @@ export const draftSchema = z.strictObject({
   packageName: fields.packageName.optional(),
   internalHosts: fields.internalHosts.optional(),
   ui: fields.ui.partial().optional(),
+  ads: adsDraftSchema.optional(),
 });
 
 export type Draft = z.infer<typeof draftSchema>;
@@ -31,6 +32,8 @@ const hostOf = (url: string) => {
   }
 };
 
+const stripUndefined = ({ enabled: _enabled, ...rest }: Record<string, unknown>) => Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== undefined));
+
 /** Renders a draft into an `app_config`, or returns null while anything is missing or invalid. */
 export const toAppConfig = (draft: Draft): AppConfig | null => {
   const host = draft.startUrl ? hostOf(draft.startUrl) : undefined;
@@ -41,6 +44,10 @@ export const toAppConfig = (draft: Draft): AppConfig | null => {
     packageName: draft.packageName,
     internalHosts: draft.internalHosts ?? (host ? [host] : undefined),
     ui: { ...DEFAULT_BEHAVIOUR, ...draft.ui },
+    // Off leaves no trace in the config, which is what keeps an ads-off app free of ad code.
+    ...(draft.ads?.enabled
+      ? { ads: { bannerPosition: 'bottom', interstitialGapSeconds: ADS_DEFAULT_GAP_SECONDS, childDirected: false, ...stripUndefined(draft.ads) } }
+      : {}),
   });
   return result.success ? result.data : null;
 };
@@ -60,4 +67,6 @@ export const suggestPackageName = (host: string) => {
 export const INTERNET = 'android.permission.INTERNET';
 
 /** The Android permissions an app asks for. Each feature that needs one adds it here. */
-export const permissionsFor = (_config: AppConfig) => [INTERNET];
+export const AD_ID = 'com.google.android.gms.permission.AD_ID';
+
+export const permissionsFor = (config: AppConfig) => [INTERNET, ...(config.ads ? [AD_ID] : [])];

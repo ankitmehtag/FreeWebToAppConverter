@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { ObjectId, type Collection, type Document } from 'mongodb';
 import { z } from 'zod';
-import { planOf, toAppConfig } from '@sitetoapk/shared';
+import { isTestAdsId, planOf, toAppConfig } from '@sitetoapk/shared';
 import { createBuild, isExpired, queueBuild, setStatus } from '@sitetoapk/shared/builds';
 import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } from '../abuse/unsafe';
 import type { Auth } from '../auth';
@@ -34,6 +34,9 @@ export const buildView = (build: Document) => ({
   aab: build.aabKey ? { bytes: build.aabBytes, sha256: build.aabSha256 } : undefined,
   signer: build.signerSha256 ? { sha1: build.signerSha1, sha256: build.signerSha256 } : undefined,
   removed: Boolean(build.artifactDeletedAt),
+  ads: build.config?.ads
+    ? { banner: Boolean(build.config.ads.bannerUnitId), interstitial: Boolean(build.config.ads.interstitialUnitId), test: [build.config.ads.appId, build.config.ads.bannerUnitId, build.config.ads.interstitialUnitId].some(isTestAdsId) }
+    : undefined,
   createdAt: build.createdAt,
   updatedAt: build.updatedAt,
 });
@@ -112,6 +115,7 @@ export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUr
     if (app.takenDown) return refuse(403, 'taken_down', `This app was taken down: ${app.takenDown.reason}`);
     const appConfig = toAppConfig(app.draft);
     if (!app.ready || !appConfig || !app.iconKey) return refuse(409, 'not_ready', 'Finish setting up the app before building it');
+    if (appConfig.ads && planOf(app) !== 'premium') return refuse(403, 'ads_premium', 'Ads are a Premium feature. Upgrade this app or turn ads off.');
 
     const user = await auth.users.findOne({ _id: ownerId });
     if (!user?.emailVerifiedAt) return refuse(403, 'email_unverified', 'Confirm your email before building');

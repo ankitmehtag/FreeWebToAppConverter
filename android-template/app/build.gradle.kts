@@ -28,7 +28,17 @@ android {
         targetSdk = sdk["targetSdk"] as Int
         versionCode = required("versionCode").toInt()
         versionName = required("versionName")
+        // Only the ads flavour reads this; the default is Google's sample app ID, which shows test ads.
+        manifestPlaceholders["adsAppId"] = optional("adsAppId") ?: "ca-app-pub-3940256099942544~3347511713"
         buildConfigField("boolean", "WATERMARK", (optional("removeWatermark") != "true").toString())
+    }
+
+    // Two flavours, so that an app without ads holds no ad library, no ad component and no advertising ID
+    // permission at all: the ads flavour is never built for it. The worker picks one (builder/build.sh).
+    flavorDimensions += "ads"
+    productFlavors {
+        create("noads") { dimension = "ads" }
+        create("ads") { dimension = "ads" }
     }
 
     buildFeatures {
@@ -77,6 +87,8 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.swiperefresh)
     implementation(libs.webkit)
+    "adsImplementation"(libs.play.services.ads)
+    "adsImplementation"(libs.ump)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
 }

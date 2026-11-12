@@ -10,6 +10,8 @@ webkit = "1.12.1"
 junit = "4.13.2"
 orgJson = "20240303"
 firebaseMessaging = "24.1.0"
+playServicesAds = "23.6.0"
+ump = "3.1.0"
 
 [libraries]
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
@@ -19,6 +21,8 @@ core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = 
 swiperefresh = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swipeRefresh" }
 webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
+play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }
+ump = { module = "com.google.android.ump:user-messaging-platform", version.ref = "ump" }
 junit = { module = "junit:junit", version.ref = "junit" }
 org-json = { module = "org.json:json", version.ref = "orgJson" }
 

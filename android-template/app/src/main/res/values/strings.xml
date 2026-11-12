@@ -5,6 +5,7 @@
     <string name="ssl_message">This page was blocked because its security certificate isn\'t valid.</string>
     <string name="watermark" translatable="false">Made with Free Website to App Converter</string>
     <string name="retry">Retry</string>
+    <string name="ad_privacy">Ad privacy options</string>
     <string name="exit_message">Exit the app?</string>
     <string name="exit_confirm">Exit</string>
     <string name="exit_cancel">Cancel</string>

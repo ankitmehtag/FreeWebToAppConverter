@@ -359,3 +359,21 @@ describe('F09 AC7: secrets stay out of logs', () => {
     expect(redact('Reading /generated/app_config.json')).toBe('Reading /generated/app_config.json');
   });
 });
+
+describe('F16 AC1: ads on a Free app fail in the worker, before compiling', () => {
+  it('fails with an input error and never starts the compile container', async () => {
+    let compiled = false;
+    const run: Run = async (options) => {
+      if (!options.entrypoint) compiled = true;
+      return fakeRun()(options);
+    };
+    const id = await setup(run);
+    await builds.updateOne({ _id: id as never }, { $set: { 'config.ads': { appId: 'ca-app-pub-1234567890123456~1234567890', bannerUnitId: 'ca-app-pub-1234567890123456/1111111111', bannerPosition: 'bottom', interstitialGapSeconds: 180, childDirected: false } } });
+    await processBuild(deps, id, attempt()).catch(() => undefined);
+    const build = await load(id);
+    expect(build?.status).toBe('failed');
+    expect(build?.failureKind).toBe('input');
+    expect(String(build?.error)).toMatch(/Premium/);
+    expect(compiled).toBe(false);
+  });
+});
