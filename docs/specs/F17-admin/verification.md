@@ -10,8 +10,8 @@
 | AC7 | `test/admin.test.ts` "AC7: the audit log" | PUT, DELETE and PATCH on an entry return 404; entry stays | pass |
 | AC8 | `test/admin.test.ts` "never returns a secret" | No secret field in any response | pass |
 | Deploy | commit dd3e83d on production; `/health` 200; `X-Robots-Tag: noindex, nofollow` on `/admin` | as shown | pass |
-| Live sign-in | Owner signs in at `/admin` with both emails and a code | pending | pending |
+| Live sign-in | Owner signs in at `/admin` with both emails and a code | Owner signed in and saw the panel | pass |
 
 Full server suite 417 pass, client 76 pass.
 
-Sign-off: pending owner, 2026-11-12
+Sign-off: owner, 2026-11-12

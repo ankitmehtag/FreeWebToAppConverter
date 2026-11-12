@@ -1,6 +1,6 @@
 # F17 Admin
 
-Status: approved
+Status: done
 
 ## Goal
 A small, safe admin panel so the owner can see how the product is doing and fix problems (a stuck build, a wrong plan, a refund) without SSH. Every admin action is recorded.
