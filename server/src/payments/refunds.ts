@@ -1,4 +1,5 @@
 import { ObjectId, type Document } from 'mongodb';
+import { refunded } from '@sitetoapk/shared/mail';
 import { setPlan } from '../apps/plan';
 import type { Payments } from './routes';
 
@@ -11,7 +12,16 @@ export const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
  */
 export const closeOrder = async (payments: Payments, order: Document, status: 'refunded' | 'disputed', extra: Document = {}) => {
   const { orders, apps, keystores } = payments;
-  await orders.updateOne({ _id: order._id, status: 'paid' }, { $set: { status, [`${status === 'refunded' ? 'refundedAt' : 'disputedAt'}`]: new Date(), ...extra } });
+  const closed = await orders.updateOne({ _id: order._id, status: 'paid' }, { $set: { status, [`${status === 'refunded' ? 'refundedAt' : 'disputedAt'}`]: new Date(), ...extra } });
+  // Only the call that closed the order tells the buyer, so a repeated event or a double click sends one email.
+  if (closed.modifiedCount === 1 && status === 'refunded') {
+    const to = order.receipt?.buyerEmail;
+    if (payments.mailer && to) {
+      payments.mailer
+        .send({ to, ...refunded({ appUrl: payments.appUrl ?? '', receiptNo: String(order.receiptNo ?? ''), appName: String(order.receipt?.appName ?? 'your app'), amount: order.amount, currency: order.currency }) })
+        .catch(() => console.error('Refund email failed'));
+    }
+  }
   const current = await orders.findOne({ _id: order._id });
   if (current?.status !== status) return;
   await setPlan(apps, order.appId, 'free');

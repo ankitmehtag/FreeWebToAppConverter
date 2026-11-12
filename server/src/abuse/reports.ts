@@ -1,3 +1,4 @@
+import { abuseReport } from '@sitetoapk/shared/mail';
 import express, { Router } from 'express';
 import type { Db } from 'mongodb';
 import { z } from 'zod';
@@ -49,21 +50,10 @@ export const reportsRouter = (auth: Auth, deps: Builds, { reports, email: report
     );
 
     if (result.upsertedId && reportsEmail) {
-      // Plain text only, so nothing a reporter writes can change how the mail is read.
       await auth.mailer
         .send({
           to: reportsEmail,
-          subject: `App report: ${reason}, ${build.config.appName}`,
-          text: [
-            `Reason: ${reason}`,
-            `App: ${build.config.appName} (${String(build.appId)})`,
-            `Package: ${build.config.packageName}`,
-            `Site: ${build.config.startUrl}`,
-            `Build: ${String(build._id)}`,
-            `Reporter email: ${email ?? 'not given'}`,
-            '',
-            details ?? 'No details given.',
-          ].join('\n'),
+          ...abuseReport({ reason, appName: build.config.appName, appId: String(build.appId), packageName: build.config.packageName, site: build.config.startUrl, buildId: String(build._id), reporterEmail: email, details }),
         })
         .catch(() => console.error('Sending the report email failed'));
     }

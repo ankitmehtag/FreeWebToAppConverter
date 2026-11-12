@@ -1,4 +1,5 @@
 import type { ObjectId } from 'mongodb';
+import { alreadyRegistered, passwordChanged, resetPassword, verifyEmail } from '@sitetoapk/shared/mail';
 import type { Auth } from './index';
 import { randomToken, sha256 } from './tokens';
 
@@ -25,20 +26,20 @@ const dispatch = (auth: Auth, send: () => Promise<void>) => {
 export const sendVerification = (auth: Auth, userId: ObjectId, to: string) =>
   dispatch(auth, async () => {
     const link = await createLink(auth, userId, 'verify');
-    await auth.mailer.send({ to, subject: 'Verify your email', text: `Confirm your email address:\n\n${link}\n\nThis link lasts 24 hours.` });
+    await auth.mailer.send({ to, ...verifyEmail({ appUrl: auth.config.appUrl, link }) });
   });
 
 export const sendReset = (auth: Auth, userId: ObjectId, to: string) =>
   dispatch(auth, async () => {
     const link = await createLink(auth, userId, 'reset');
-    await auth.mailer.send({ to, subject: 'Reset your password', text: `Choose a new password:\n\n${link}\n\nThis link lasts 1 hour.` });
+    await auth.mailer.send({ to, ...resetPassword({ appUrl: auth.config.appUrl, link }) });
   });
+
+/** After a reset: tells the account, so a change it did not make is noticed. */
+export const sendPasswordChanged = (auth: Auth, to: string) =>
+  dispatch(auth, () => auth.mailer.send({ to, ...passwordChanged({ appUrl: auth.config.appUrl, at: new Date() }) }));
 
 export const sendAlreadyRegistered = (auth: Auth, to: string) =>
   dispatch(auth, () =>
-    auth.mailer.send({
-      to,
-      subject: 'You already have an account',
-      text: `Someone tried to sign up with this address, which already has an account. If it was you, sign in or reset your password at ${auth.config.appUrl}.`,
-    }),
+    auth.mailer.send({ to, ...alreadyRegistered({ appUrl: auth.config.appUrl }) }),
   );

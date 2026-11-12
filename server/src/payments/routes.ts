@@ -22,6 +22,8 @@ export type Payments = Awaited<ReturnType<typeof prepareOrders>> & {
   builds?: Collection<Document>;
   /** Sends receipts. Without one, receipts are still numbered and shown in the account. */
   mailer?: Mailer;
+  /** The site's address, for links and footers in emails. */
+  appUrl?: string;
   /** Only providers with keys set. INR goes to Razorpay; USD waits for Stripe. */
   providers: Partial<Record<ProviderName, PaymentProvider>>;
 };

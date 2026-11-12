@@ -10,7 +10,8 @@
     "./s3": "./src/s3.ts",
     "./firebase": "./src/firebase.ts",
     "./keystore": "./src/keystore.ts",
-    "./builds": "./src/builds.ts"
+    "./builds": "./src/builds.ts",
+    "./mail": "./src/mail.ts"
   },
   "scripts": {
     "generate": "tsx scripts/generate-json-schema.ts",

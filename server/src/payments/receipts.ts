@@ -1,9 +1,9 @@
 import type { Document } from 'mongodb';
+import { receipt } from '@sitetoapk/shared/mail';
 import type { Payments } from './routes';
 
 export const formatReceiptNo = (n: number) => `R-${String(n).padStart(6, '0')}`;
 
-const money = (amount: number, currency: string) => (currency === 'INR' ? `₹${amount / 100}` : `$${amount / 100}`);
 const STALE_MS = 10 * 60 * 1000;
 const stale = () => ({ $lt: new Date(Date.now() - STALE_MS) });
 
@@ -21,22 +21,6 @@ export const receiptView = (order: Document) => ({
   status: order.status,
   tax: null,
 });
-
-const body = (order: Document) =>
-  [
-    `Receipt ${order.receiptNo}`,
-    '',
-    `Date:     ${new Date(order.paidAt).toISOString().slice(0, 10)}`,
-    `Buyer:    ${order.receipt.buyerEmail}`,
-    `Item:     Premium for ${order.receipt.appName}, one time`,
-    ...(order.couponCode ? [`Coupon:   ${order.couponCode} (list price ${money(order.listAmount, order.currency)})`] : []),
-    `Paid:     ${money(order.amount, order.currency)} (${order.currency})`,
-    '',
-    'This is a payment receipt, not a tax invoice. No tax was charged.',
-    '',
-    'Refunds: a full refund within 7 days of payment, if the signing key and the app bundle have not been downloaded.',
-    '',
-  ].join('\n');
 
 /**
  * Gives a paid order its sequential number and emails the receipt. Each step is claimed before it runs and recorded after,
@@ -70,7 +54,10 @@ export const finishReceipt = async (payments: Payments, orderId: Document['_id']
     );
     if (!claimed) return;
     try {
-      await mailer.send({ to: order.receipt.buyerEmail, subject: `Your receipt ${order.receiptNo}`, text: body(order) });
+      await mailer.send({
+        to: order.receipt.buyerEmail,
+        ...receipt({ appUrl: payments.appUrl ?? '', receiptNo: order.receiptNo, paidAt: order.paidAt, buyerEmail: order.receipt.buyerEmail, appName: order.receipt.appName, couponCode: order.couponCode, listAmount: order.listAmount ?? order.amount, amount: order.amount, currency: order.currency }),
+      });
       await orders.updateOne({ _id: orderId }, { $set: { receiptEmailedAt: new Date() } });
     } catch (error) {
       // Let the next sweep try again.

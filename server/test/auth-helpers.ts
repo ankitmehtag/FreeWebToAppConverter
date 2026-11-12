@@ -116,7 +116,7 @@ export const makeHarness = async (
     verifyPayment: (providerOrderId, paymentId, signature) => signature === createHmac('sha256', KEY_SECRET).update(`${providerOrderId}|${paymentId}`).digest('hex'),
     verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(WEBHOOK_SECRET, rawBody, headers),
   };
-  const payments = { ...pay, apps: apps.apps, users: db.collection('users'), keystores: keystores as never, builds: builds.builds, mailer: { send: async (mail: Mail) => void sent.push(mail) }, providers: { razorpay: razorpayFake } as Payments['providers'] };
+  const payments = { ...pay, apps: apps.apps, users: db.collection('users'), keystores: keystores as never, builds: builds.builds, mailer: { send: async (mail: Mail) => void sent.push(mail) }, appUrl: APP_URL, providers: { razorpay: razorpayFake } as Payments['providers'] };
   const admin = await prepareAdmin({ db, auth, adminEmails: [ADMIN_EMAIL] });
   const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring }, payments, admin }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));

@@ -103,6 +103,7 @@ const payments: Payments | undefined = process.env.RAZORPAY_KEY_ID
       keystores: mongo.db().collection('keystores'),
       builds: mongo.db().collection('builds'),
       mailer,
+      appUrl: requireEnv('APP_URL'),
       providers: {
         razorpay: razorpay({
           keyId: process.env.RAZORPAY_KEY_ID,
@@ -136,7 +137,7 @@ const app = createApp({
     : undefined,
   payments,
   // Off until an admin email is named.
-  admin: process.env.ADMIN_EMAILS ? await prepareAdmin({ db: mongo.db(), auth, adminEmails: process.env.ADMIN_EMAILS.split(',') }) : undefined,
+  admin: process.env.ADMIN_EMAILS ? await prepareAdmin({ db: mongo.db(), auth, adminEmails: process.env.ADMIN_EMAILS.split(','), contactEmail: process.env.REPORTS_EMAIL || undefined }) : undefined,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
   unsafe: process.env.WEB_RISK_API_KEY ? createUnsafeChecker(redis, webRiskLookup(process.env.WEB_RISK_API_KEY)) : undefined,

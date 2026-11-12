@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { ObjectId } from 'mongodb';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { checkCode, codeNow, newSecret, seal, unseal } from '../src/admin/totp';
 import { adminIn, makeHarness, signedIn } from './auth-helpers';
 
@@ -225,5 +225,59 @@ describe('AC7: the audit log', () => {
       expect(res.status).toBe(404);
     }
     expect(await h.admin.audit.countDocuments({ _id: entryId })).toBe(1);
+  });
+});
+
+describe('F18 emails from the admin and payment paths', () => {
+  const sentTo = (to: string, subject: RegExp) => h.sent.filter((mail) => mail.to === to && subject.test(mail.subject));
+
+  it('AC7: disabling a user emails them once, with text and HTML', async () => {
+    const { user } = await adminIn(h);
+    const victimEmail = email();
+    const victim = await signedIn(h, victimEmail);
+    const victimId = (await h.users.findOne({ email: victimEmail }))!._id;
+    await user.post(`/admin/api/users/${victimId}/disable`, why);
+    await vi.waitFor(() => expect(sentTo(victimEmail, /account was disabled/i)).toHaveLength(1));
+    expect(sentTo(victimEmail, /account was disabled/i)[0]!.html).toContain('Your account was disabled');
+    void victim;
+  });
+
+  it('AC4: a refund emails the buyer exactly once', async () => {
+    const { user } = await adminIn(h);
+    const { user: buyer, appId } = await someApp();
+    const { id } = await (await buyer.post('/payments/checkout', { appId })).json();
+    const buyerEmail = email();
+    await h.orders.updateOne({ _id: new ObjectId(id) }, { $set: { status: 'paid', paidAt: new Date(), paymentId: `pay_${id}`, receiptNo: 'R-000042', receipt: { buyerEmail, appName: 'Shop' } } });
+    await Promise.all([user.post(`/admin/api/orders/${id}/refund`, why), user.post(`/admin/api/orders/${id}/refund`, why)]);
+    await vi.waitFor(() => expect(sentTo(buyerEmail, /Refund for receipt R-000042/)).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(sentTo(buyerEmail, /Refund for receipt/)).toHaveLength(1);
+  });
+
+  it('AC8: a mail provider that is down does not break a refund or a disable', async () => {
+    const { user } = await adminIn(h);
+    const real = h.payments.mailer;
+    const realAuth = h.admin.auth.mailer;
+    const down = { send: async () => { throw new Error('provider down to a@secret.test'); } };
+    const errors: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args) => void errors.push(args.join(' ')));
+    try {
+      (h.payments as { mailer?: unknown }).mailer = down;
+      (h.admin.auth as { mailer: unknown }).mailer = down;
+      const { user: buyer, appId } = await someApp();
+      const { id } = await (await buyer.post('/payments/checkout', { appId })).json();
+      await h.orders.updateOne({ _id: new ObjectId(id) }, { $set: { status: 'paid', paidAt: new Date(), paymentId: `pay_${id}`, receipt: { buyerEmail: 'a@secret.test', appName: 'Shop' } } });
+      expect((await user.post(`/admin/api/orders/${id}/refund`, why)).status).toBe(200);
+      const victimEmail = email();
+      await signedIn(h, victimEmail);
+      const victimId = (await h.users.findOne({ email: victimEmail }))!._id;
+      expect((await user.post(`/admin/api/users/${victimId}/disable`, why)).status).toBe(204);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(errors.join('\n')).not.toContain('secret.test');
+    } finally {
+      spy.mockRestore();
+      (h.payments as { mailer?: unknown }).mailer = real;
+      (h.admin.auth as { mailer: unknown }).mailer = realAuth;
+    }
   });
 });

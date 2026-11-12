@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import cookieParser from 'cookie-parser';
 import express, { Router, type ErrorRequestHandler, type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { consumeLink, sendAlreadyRegistered, sendReset, sendVerification } from './email';
+import { consumeLink, sendAlreadyRegistered, sendPasswordChanged, sendReset, sendVerification } from './email';
 import { finishGoogle, startGoogle } from './google';
 import type { Auth } from './index';
 import { clearFailures, isIpBlocked, isLocked, limitRoute, recordFailure } from './limits';
@@ -130,7 +130,10 @@ export const authRouter = (auth: Auth) => {
     const passwordHash = await bcrypt.hash(body.password, auth.config.bcryptCost);
     const user = await auth.users.findOneAndUpdate({ _id: userId }, { $set: { passwordHash, emailVerifiedAt: new Date() } });
     await revokeAllSessions(auth, userId);
-    if (user) await clearFailures(auth, user.email);
+    if (user) {
+      await clearFailures(auth, user.email);
+      sendPasswordChanged(auth, user.email);
+    }
     res.status(204).end();
   });
 

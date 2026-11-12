@@ -156,6 +156,19 @@ describe('AC7: revocation', () => {
     expect((await old.post('/auth/refresh', {}, { csrf })).status).toBe(401);
   });
 
+  it('AC3: a reset emails the account that its password was changed', async () => {
+    const address = email();
+    await signedIn(h, address);
+    await h.client().post('/auth/password/forgot', { email: address });
+    await vi.waitFor(() => expect(h.sent.filter((m) => m.to === address && m.subject.includes('Reset'))).toHaveLength(1));
+    const token = h.tokenIn(await h.mailTo(address));
+    await h.client().post('/auth/password/reset', { token, password: 'a-brand-new-password' });
+    await vi.waitFor(() => expect(h.sent.filter((m) => m.to === address && m.subject === 'Your password was changed')).toHaveLength(1));
+    const changed = h.sent.find((m) => m.to === address && m.subject === 'Your password was changed')!;
+    expect(changed.html).toContain('/forgot-password');
+    expect(changed.text).toContain('/forgot-password');
+  });
+
   it('a reset ends every session', async () => {
     const address = email();
     const first = await signedIn(h, address);

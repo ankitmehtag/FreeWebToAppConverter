@@ -63,6 +63,7 @@ export const installRouter = (auth: Auth, deps: Builds) => {
     if (!build) return gone(res);
     const link = await downloadLink(deps, build as never);
     if (link.url === undefined) return gone(res);
+    await deps.builds.updateOne({ _id: build._id }, { $set: { apkDownloadedAt: new Date() } });
     res.redirect(302, link.url);
   });
 

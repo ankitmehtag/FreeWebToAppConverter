@@ -1,5 +1,6 @@
 import type { Collection } from 'mongodb';
 import { eraseDue, type Keystores } from '@sitetoapk/shared/keystore';
+import { keyErasing, keyReminder } from '@sitetoapk/shared/mail';
 import type { Mailer } from './notify';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,11 +34,8 @@ export const keyUpkeep = async ({ keystores, users, apps, mail, appUrl, now = ne
       const to = await ownerEmail(users, key.ownerId);
       if (!to) continue;
       const name = await appName(apps, key.appId);
-      await mail(
-        to,
-        `Back up the signing key for ${name}`,
-        `The Premium signing key for ${name} has not been downloaded yet.\n\nGoogle Play only accepts updates signed with this key. If we lose it, or you lose access, you cannot update the app. Download it once and keep it somewhere safe:\n${appUrl}/my-apps/${key.appId}/review`,
-      );
+      const message = keyReminder({ appUrl, appName: name, link: `${appUrl}/my-apps/${key.appId}/review` });
+      await mail(to, message.subject, message.text, message.html);
       reminders += 1;
     } catch (error) {
       console.error('Key reminder failed', (error as Error).message);
@@ -52,11 +50,8 @@ export const keyUpkeep = async ({ keystores, users, apps, mail, appUrl, now = ne
       const to = key.ownerId ? await ownerEmail(users, key.ownerId) : null;
       if (!to) continue;
       const name = await appName(apps, key.appId);
-      await mail(
-        to,
-        `The signing key for ${name} will be erased on ${key.deleteAfter!.toDateString()}`,
-        `The signing key for ${name} will be erased on ${key.deleteAfter!.toDateString()}. Until then you can still download it:\n${appUrl}/my-apps/${key.appId}/review\n\nAfter that day it cannot be brought back.`,
-      );
+      const message = keyErasing({ appUrl, appName: name, link: `${appUrl}/my-apps/${key.appId}/review`, eraseOn: key.deleteAfter! });
+      await mail(to, message.subject, message.text, message.html);
       notices += 1;
     } catch (error) {
       console.error('Key erase notice failed', (error as Error).message);

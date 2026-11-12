@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { FINAL_STATUSES, queueBuild } from '@sitetoapk/shared/builds';
 import { setPlan } from '../apps/plan';
 import type { Builds } from '../builds';
+import { accountDisabled } from '@sitetoapk/shared/mail';
 import { allowOrigin, invalid } from '../auth/routes';
 import { requireCsrf, requireSession, revokeAllSessions } from '../auth/session';
 import { normalizeCode } from '../payments/coupons';
@@ -257,7 +258,11 @@ export const adminRouter = ({ admin, builds, apps, payments }: Deps) => {
     if (String(_id) === String(res.locals.admin._id)) return void res.status(409).json({ error: 'You cannot disable your own account' });
     const done = await users.updateOne({ _id }, disabled ? { $set: { disabledAt: new Date() } } : { $unset: { disabledAt: '' } });
     if (done.matchedCount !== 1) return void notFound(res);
-    if (disabled) await revokeAllSessions(auth, _id);
+    if (disabled) {
+      await revokeAllSessions(auth, _id);
+      const target = await users.findOne({ _id });
+      if (target?.email) auth.mailer.send({ to: String(target.email), ...accountDisabled({ appUrl: auth.config.appUrl, contact: admin.contactEmail }) }).catch(() => console.error('Account email failed'));
+    }
     await record(res, disabled ? 'user.disable' : 'user.enable', { kind: 'user', id: String(_id) }, why);
     res.status(204).end();
   };

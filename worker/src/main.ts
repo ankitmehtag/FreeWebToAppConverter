@@ -7,6 +7,7 @@ import { createLogSink } from './logs';
 import { assertImageMatches } from './image';
 import { startWorker } from './queue';
 import { createMailer, createNotifier } from './notify';
+import { buildExpiryReminders } from './build-expiry';
 import { keyUpkeep } from './key-upkeep';
 import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import { serviceAccountFromEnv } from '@sitetoapk/shared/firebase';
@@ -42,8 +43,16 @@ if (mailKey) {
     keyUpkeep({ keystores, users: mongo.db().collection('users'), apps, mail, appUrl: requireEnv('APP_URL') }).catch((error) =>
       console.error('Key upkeep failed', error),
     );
+  const expiry = () =>
+    buildExpiryReminders({ builds, users: mongo.db().collection('users'), mail, appUrl: requireEnv('APP_URL') }).catch((error) =>
+      console.error('Build expiry reminders failed', error),
+    );
   void upkeep();
-  setInterval(() => void upkeep(), KEY_UPKEEP_INTERVAL_MS);
+  void expiry();
+  setInterval(() => {
+    void upkeep();
+    void expiry();
+  }, KEY_UPKEEP_INTERVAL_MS);
 }
 
 const reaperDeps = { builds, timeoutMs, workRoot };
