@@ -35,9 +35,9 @@ Server 392 tests, worker 126, shared 84, client 76. All pass. The payment tests 
 1. Test-mode keys in the local `.env`, then one real test order with Razorpay's test card, through the modal, ending paid with a receipt.
 2. The same on production, after the owner fills `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` in `.env.production`, and adds the webhook `https://freewebsitetoappconverter.com/payments/webhooks/razorpay` for `order.paid`, `refund.processed` and `payment.dispute.lost`.
 3. A real refund through `npm run refund-order -w server -- <order id>`.
-4. Image-layer scan result (below).
+4. ~~Image-layer scan~~ done, see below.
 5. The owner's review of the Pricing, Terms and receipt wording.
 
-Image layers: pending.
+Image layers, 2026-11-12: the running API image (15 layers, unpacked and scanned on the server with `scan-secrets`) holds no key, webhook secret or private key. One card-number match, in `perl-base/unicore/To/NFKCCF.pl` (a Unicode table that ships with Debian), is a long number that happens to pass the checksum, not a card. The builder image was not scanned for this; it never receives payment settings. The first scan hung on a pipe or link inside a layer, so the scanner now reads regular files only (commit 32000b3).
 
 Sign-off: owner, date
