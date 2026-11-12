@@ -18,4 +18,4 @@
   - Proof: AC8, AC11
 - [x] T5: Wizard step, review and build page notes, pricing, privacy and Play wording (R2, R4, R9, R10)
   - Tests first: AC4, AC10 (client)
-- [ ] T6: Build image v5, verify-image, deploy, phone check with test IDs (AC5, AC6, AC9)
+- [x] T6: Image v5 built and verified on the server, deployed; owner phone check with test IDs pending (AC5, AC6, AC9)
