@@ -31,7 +31,7 @@ Slices and proof are defined when each feature's spec is written.
 |---|---|---|
 | **F13 Premium signing** | Per-app keystore, AAB, white label | done |
 | **F14 Payments** | Plans, Razorpay, Stripe, refunds, reconciliation, coupons | building |
-| **F15 Push** | Platform FCM first, then bring-your-own credentials | not started |
+| **F15 Push** | Platform FCM first, then bring-your-own credentials | done |
 | **F16 Ads** | AdMob and consent | done |
 | **F17 Admin** | Admin panel, audit log, 2FA | done |
 | **F18 Email** | Remaining email templates | done |
