@@ -34,7 +34,7 @@ Slices and proof are defined when each feature's spec is written.
 | **F15 Push** | Platform FCM first, then bring-your-own credentials | not started |
 | **F16 Ads** | AdMob and consent | not started |
 | **F17 Admin** | Admin panel, audit log, 2FA | done |
-| **F18 Email** | Remaining email templates | not started |
+| **F18 Email** | Remaining email templates | done |
 
 ## Phase 3: growth
 

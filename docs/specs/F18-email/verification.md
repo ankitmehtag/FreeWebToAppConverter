@@ -11,9 +11,9 @@
 | AC7 | `server/test/admin.test.ts` "AC7" | One "Your account was disabled" email with HTML | pass |
 | AC8 | `server/test/admin.test.ts` "AC8" | Refund and disable succeed with the mail provider down; log has no address | pass |
 | AC9 | `shared/test/mail.test.ts` "AC9" | `<script>` is escaped in HTML, as typed in text | pass |
-| AC10 | DNS: DKIM `resend._domainkey`, SPF on `send.`, DMARC `p=quarantine` exist; real mail to the owner's inbox | pending the owner's check in Gmail | pending |
+| AC10 | DNS: DKIM `resend._domainkey`, SPF on `send.`, DMARC `p=quarantine` exist; real mail to the owner's inbox | Owner opened the real reset email in Gmail and it displayed correctly | pass |
 | Q4 | `dig` for the sending domain | DKIM, SPF and DMARC records found | pass |
 
 Suites: shared 101, server 421, worker 132 pass.
 
-Sign-off: pending owner
+Sign-off: owner, 2026-11-13

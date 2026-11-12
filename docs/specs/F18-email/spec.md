@@ -1,6 +1,6 @@
 # F18 Email
 
-Status: approved
+Status: done
 
 ## Goal
 Every email the product sends comes from one place, looks like it belongs to the product (a plain, branded HTML version plus a text version), and the few useful messages that are still missing get sent. All are transactional: no marketing, so no unsubscribe list is needed.
