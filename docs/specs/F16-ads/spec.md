@@ -1,6 +1,6 @@
 # F16 Ads
 
-Status: approved
+Status: done
 
 ## Goal
 A Premium app's owner can earn from their app: they paste their own Google AdMob IDs, choose a banner and/or interstitial ads and how often they appear, and the built app shows them. Where the law needs it, the app first asks the visitor for consent. An app built without ads contains no ad code at all.
