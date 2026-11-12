@@ -8,6 +8,7 @@ import { planOf } from '../apps/plan';
 import type { prepareOrders } from './orders';
 import { receiptView } from './receipts';
 import type { Mailer } from '../auth/types';
+import { applyEvent } from './events';
 import { discounted, findUsable, normalizeCode, redeem, releaseCoupon } from './coupons';
 import { isCurrency, premiumPrice, type Currency } from './prices';
 import { markPaid } from './unlock';
@@ -67,6 +68,33 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     res.json({ code: coupon!.code, currency, amount });
   });
 
+  /** What the page needs to take the payment: the provider's modal (public key and order id) or a hosted page to open. */
+  const checkoutOf = (order: Document) => ({
+    provider: order.provider,
+    keyId: order.keyId ?? null,
+    orderId: order.providerOrderId,
+    amount: order.amount,
+    currency: order.currency,
+    checkoutUrl: order.checkoutUrl ?? null,
+  });
+
+  /**
+   * After the modal succeeds the page sends the three values it returned. A signature that does not match marks nothing paid.
+   * The order's own amount is used, not anything the page says; the webhook and the sweep remain the backstop.
+   */
+  router.post('/verify', csrf, async (req, res) => {
+    const { razorpay_order_id: providerOrderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = req.body ?? {};
+    if (![providerOrderId, paymentId, signature].every((value) => typeof value === 'string' && value.length > 0 && value.length < 200)) {
+      return res.status(400).json({ error: 'Missing payment details' });
+    }
+    const order = await orders.findOne({ provider: 'razorpay', providerOrderId, userId: userOf(res) });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const provider = providers.razorpay;
+    if (!provider?.verifyPayment?.(providerOrderId, paymentId, signature)) return res.status(400).json({ error: 'Payment could not be verified' });
+    await applyEvent(payments, 'razorpay', { eventId: `verify:${paymentId}`, type: 'paid', providerOrderId, paymentId, amount: order.amount, currency: order.currency }, 'verify');
+    res.json(view((await orders.findOne({ _id: order._id }))!));
+  });
+
   router.post('/checkout', csrf, async (req, res) => {
     const userId = userOf(res);
     // Counted before anything else, so bad requests use up the allowance too.
@@ -87,8 +115,8 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     const open = await orders.findOne({ appId, status: { $in: ['created', 'pending', 'paid'] } });
     const reuse = (order: Document) => {
       if (order.status === 'paid') return res.status(409).json({ error: 'This app is already paid for' });
-      if (!order.checkoutUrl) return res.status(409).json({ error: 'Checkout is starting, try again in a moment' });
-      return res.json({ ...view(order), checkoutUrl: order.checkoutUrl });
+      if (!order.providerOrderId) return res.status(409).json({ error: 'Checkout is starting, try again in a moment' });
+      return res.json({ ...view(order), checkout: checkoutOf(order) });
     };
     if (open) return reuse(open);
 
@@ -140,7 +168,7 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     if (free) {
       // Through the same unlock as a payment, so it shows in the records, with no provider call.
       await markPaid(payments, order);
-      return res.status(201).json({ ...view({ ...order, status: 'paid' }), checkoutUrl: null });
+      return res.status(201).json({ ...view({ ...order, status: 'paid' }), checkout: null });
     }
 
     try {
@@ -152,8 +180,9 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
         customerEmail: String(user?.email ?? ''),
         returnUrl: `${auth.config.appUrl}/pay/return?order=${order._id}`,
       });
-      await orders.updateOne({ _id: order._id }, { $set: { providerOrderId: checkout.providerOrderId, checkoutUrl: checkout.checkoutUrl } });
-      res.status(201).json({ ...view(order), checkoutUrl: checkout.checkoutUrl });
+      const kept = { providerOrderId: checkout.providerOrderId, ...(checkout.keyId ? { keyId: checkout.keyId } : {}), ...(checkout.checkoutUrl ? { checkoutUrl: checkout.checkoutUrl } : {}) };
+      await orders.updateOne({ _id: order._id }, { $set: kept });
+      res.status(201).json({ ...view(order), checkout: checkoutOf({ ...order, ...kept }) });
     } catch (error) {
       // Free the app for another try, and give the coupon use back. The message stays out of the reply, as it can carry request details.
       await orders.updateOne({ _id: order._id }, { $set: { status: 'failed', failedAt: new Date() } });

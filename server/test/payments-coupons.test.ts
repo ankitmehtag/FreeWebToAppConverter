@@ -154,7 +154,7 @@ describe('AC12: a 100 percent coupon unlocks with no provider call', () => {
     const response = await user.post('/payments/checkout', { appId, couponCode: c });
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body).toMatchObject({ status: 'paid', amount: 0, checkoutUrl: null });
+    expect(body).toMatchObject({ status: 'paid', amount: 0, checkout: null });
     expect(h.checkouts.length).toBe(before);
     expect(await h.orders.findOne({ _id: new ObjectId(body.id) })).toMatchObject({ provider: 'coupon', status: 'paid', couponCode: c, couponRedeemed: true });
     expect(await planOf(appId)).toBe('premium');

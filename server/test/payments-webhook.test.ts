@@ -21,8 +21,8 @@ const planOf = async (appId: string) => (await h.apps.findOne({ _id: new ObjectI
 
 const paidBody = (providerOrderId: string, amount = 9900, currency = 'INR') =>
   JSON.stringify({
-    event: 'payment_link.paid',
-    payload: { payment_link: { entity: { id: providerOrderId, amount, amount_paid: amount, currency } }, payment: { entity: { id: `pay_${providerOrderId}`, amount, currency } } },
+    event: 'order.paid',
+    payload: { order: { entity: { id: providerOrderId, amount, amount_paid: amount, currency } }, payment: { entity: { id: `pay_${providerOrderId}`, amount, currency } } },
   });
 const sign = (body: string, secret = WEBHOOK_SECRET) => createHmac('sha256', secret).update(body).digest('hex');
 const send = (body: string, { eventId = `evt_${Math.random()}`, signature = sign(body) }: { eventId?: string; signature?: string | null } = {}) =>
@@ -112,7 +112,7 @@ describe('an event for an order we cannot match yet', () => {
   });
 
   it('ignores events it does not act on', async () => {
-    const body = JSON.stringify({ event: 'order.paid', payload: {} });
+    const body = JSON.stringify({ event: 'payment.authorized', payload: {} });
     expect((await send(body)).status).toBe(200);
   });
 });

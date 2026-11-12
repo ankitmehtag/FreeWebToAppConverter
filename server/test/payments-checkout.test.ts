@@ -27,7 +27,7 @@ describe('AC1: checkout creates an order and sends the buyer to the provider', (
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body).toMatchObject({ appId, plan: 'premium', status: 'created', currency: 'INR', amount: 9900 });
-    expect(body.checkoutUrl).toBe(`https://pay.test/${body.id}`);
+    expect(body.checkout).toEqual({ provider: 'razorpay', keyId: 'rzp_test_fake', orderId: expect.stringMatching(/^order_/), amount: 9900, currency: 'INR', checkoutUrl: null });
     const order = await h.orders.findOne({ _id: new ObjectId(body.id) });
     expect(order).toMatchObject({ provider: 'razorpay', providerOrderId: expect.any(String), status: 'created' });
     expect(h.checkouts.at(-1)).toMatchObject({ orderId: body.id, amount: 9900, currency: 'INR', returnUrl: expect.stringContaining(`/pay/return?order=${body.id}`) });
@@ -83,7 +83,7 @@ describe('AC2: a second checkout never makes a second charge', () => {
     const first = await (await user.post('/payments/checkout', { appId })).json();
     const again = await user.post('/payments/checkout', { appId });
     expect(again.status).toBe(200);
-    expect(await again.json()).toMatchObject({ id: first.id, checkoutUrl: first.checkoutUrl });
+    expect(await again.json()).toMatchObject({ id: first.id, checkout: first.checkout });
     expect(await h.orders.countDocuments({ appId: new ObjectId(appId) })).toBe(1);
   });
 

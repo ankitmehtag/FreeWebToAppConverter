@@ -79,7 +79,7 @@ describe('AC9: stuck orders are fixed from the provider\'s real status', () => {
 
   it('fails an order that never reached the provider', async () => {
     const { orderId } = await stuck(45 * MIN);
-    await h.orders.updateOne({ _id: orderId }, { $unset: { providerOrderId: '', checkoutUrl: '' } });
+    await h.orders.updateOne({ _id: orderId }, { $unset: { providerOrderId: '', keyId: '' } });
     await reconcile(h.payments);
     expect(await statusOf(orderId)).toBe('failed');
   });

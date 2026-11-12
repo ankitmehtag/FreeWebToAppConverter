@@ -31,18 +31,18 @@ export const verifyRazorpayWebhook = (
   } catch {
     return { eventId, type: 'ignored' };
   }
-  const link = entity(body, 'payment_link');
+  const order = entity(body, 'order');
   const payment = entity(body, 'payment');
   const refund = entity(body, 'refund');
   switch (body.event) {
-    case 'payment_link.paid':
+    case 'order.paid':
       return {
         eventId,
         type: 'paid',
-        providerOrderId: link?.id as string | undefined,
+        providerOrderId: order?.id as string | undefined,
         paymentId: (payment?.id ?? undefined) as string | undefined,
-        amount: Number(link?.amount_paid ?? payment?.amount),
-        currency: String(link?.currency ?? payment?.currency),
+        amount: Number(order?.amount_paid ?? payment?.amount),
+        currency: String(order?.currency ?? payment?.currency),
       };
     case 'refund.processed':
       return { eventId, type: 'refunded', paymentId: refund?.payment_id as string | undefined, amount: Number(refund?.amount) };
@@ -76,22 +76,23 @@ export const razorpay = ({ keyId, keySecret, webhookSecret, fetchImpl = fetch }:
 
     verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(webhookSecret, rawBody, headers),
 
+    verifyPayment(providerOrderId, paymentId, signature) {
+      const expected = createHmac('sha256', keySecret).update(`${providerOrderId}|${paymentId}`).digest();
+      const given = Buffer.from(signature, 'hex');
+      return given.length === expected.length && timingSafeEqual(given, expected);
+    },
+
     async createCheckout(input) {
       if (input.currency !== 'INR') throw new Error('Razorpay is used for INR only');
-      const link = await call('/payment_links', {
+      const order = await call('/orders', {
         amount: input.amount,
         currency: input.currency,
-        description: input.description,
-        reference_id: input.orderId,
-        customer: { email: input.customerEmail },
-        notify: { email: false, sms: false },
-        callback_url: input.returnUrl,
-        callback_method: 'get',
-        accept_partial: false,
+        receipt: input.orderId,
         notes: { orderId: input.orderId },
       });
-      if (typeof link.id !== 'string' || typeof link.short_url !== 'string') throw new Error('Razorpay sent no payment link');
-      return { providerOrderId: link.id, checkoutUrl: link.short_url };
+      if (typeof order.id !== 'string') throw new Error('Razorpay sent no order id');
+      // The page opens Razorpay's modal with this id and the public key. The secret never leaves the server.
+      return { providerOrderId: order.id, keyId };
     },
 
     async refund(paymentId, amount) {
@@ -101,15 +102,15 @@ export const razorpay = ({ keyId, keySecret, webhookSecret, fetchImpl = fetch }:
     },
 
     async fetchStatus(providerOrderId): Promise<ProviderStatus> {
-      const link = await call(`/payment_links/${encodeURIComponent(providerOrderId)}`);
-      const amount = Number(link.amount);
-      const currency = String(link.currency);
-      const payments = Array.isArray(link.payments) ? (link.payments as { payment_id?: string }[]) : [];
-      const paymentId = payments.find((payment) => typeof payment.payment_id === 'string')?.payment_id;
+      const order = await call(`/orders/${encodeURIComponent(providerOrderId)}`);
+      const amount = Number(order.amount);
+      const currency = String(order.currency);
       // Paid only if the full amount came in, whatever the label says.
-      if (link.status === 'paid' && Number(link.amount_paid) >= amount) return { status: 'paid', amount, currency, paymentId };
-      if (link.status === 'expired' || link.status === 'cancelled') return { status: 'expired', amount, currency };
-      return { status: 'created', amount, currency };
+      if (order.status !== 'paid' || Number(order.amount_paid) < amount) return { status: 'created', amount, currency };
+      const payments = await call(`/orders/${encodeURIComponent(providerOrderId)}/payments`);
+      const items = Array.isArray(payments.items) ? (payments.items as { id?: string; status?: string }[]) : [];
+      const paymentId = items.find((item) => item.status === 'captured' && typeof item.id === 'string')?.id;
+      return { status: 'paid', amount, currency, paymentId };
     },
   };
 };

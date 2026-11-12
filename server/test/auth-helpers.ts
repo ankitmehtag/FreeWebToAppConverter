@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { parseKeyring, prepareKeystores } from '@sitetoapk/shared/keystore';
 import type { Screenshot } from '../src/url/screenshot';
 import { randomUUID } from 'node:crypto';
@@ -24,6 +24,7 @@ import type { FetchUrl } from '../src/url/fetcher';
 
 export const APP_URL = 'http://app.test';
 export const WEBHOOK_SECRET = 'whsec_test_secret';
+export const KEY_SECRET = 'key_secret_for_tests';
 
 // The local S3 from Compose stands in for R2. Its credentials are local only.
 export const localS3 = {
@@ -101,13 +102,14 @@ export const makeHarness = async (
     name: 'razorpay',
     createCheckout: async (input) => {
       checkouts.push(input);
-      return { providerOrderId: `plink_${checkouts.length}`, checkoutUrl: `https://pay.test/${input.orderId}` };
+      return { providerOrderId: `order_${checkouts.length}`, keyId: 'rzp_test_fake' };
     },
     fetchStatus: async () => ({ status: 'created', amount: 9900, currency: 'INR' }),
     refund: async (paymentId, amount) => {
       refunds.push({ paymentId, amount });
       return { refundId: `rfnd_${refunds.length}` };
     },
+    verifyPayment: (providerOrderId, paymentId, signature) => signature === createHmac('sha256', KEY_SECRET).update(`${providerOrderId}|${paymentId}`).digest('hex'),
     verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(WEBHOOK_SECRET, rawBody, headers),
   };
   const payments = { ...pay, apps: apps.apps, users: db.collection('users'), keystores: keystores as never, builds: builds.builds, mailer: { send: async (mail: Mail) => void sent.push(mail) }, providers: { razorpay: razorpayFake } as Payments['providers'] };

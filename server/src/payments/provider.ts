@@ -13,7 +13,8 @@ export type CheckoutInput = {
   returnUrl: string;
 };
 
-export type Checkout = { providerOrderId: string; checkoutUrl: string };
+/** Where the buyer pays: a hosted page to open (`checkoutUrl`), or the provider's own modal, which needs the public key. */
+export type Checkout = { providerOrderId: string; checkoutUrl?: string; keyId?: string };
 
 /** What the provider says about an order right now. `created` covers unpaid and part-paid. */
 export type ProviderStatus = {
@@ -39,6 +40,8 @@ export interface PaymentProvider {
   readonly name: ProviderName;
   createCheckout(input: CheckoutInput): Promise<Checkout>;
   fetchStatus(providerOrderId: string): Promise<ProviderStatus>;
+  /** Standard Checkout only: whether the three values the modal returned prove that payment belongs to this order. */
+  verifyPayment?(providerOrderId: string, paymentId: string, signature: string): boolean;
   /** A full refund of one payment. */
   refund(paymentId: string, amount: number): Promise<{ refundId: string }>;
   /** Checks the signature on the raw body first. Null means it is not from the provider, so nothing may be read from it. */
