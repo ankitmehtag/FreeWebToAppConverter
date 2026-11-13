@@ -1,6 +1,6 @@
 # F23 Redesign: navy and electric blue SaaS look
 
-Status: approved (owner said "krdo", 2026-11-13)
+Status: done (deployed 2026-11-13, signed off by the owner)
 
 Source design: the owner's Claude Design canvas, https://claude.ai/artifact/5f3pwYbwatmZAGaiy4Wzwq
 (boards: Homepage, Dashboard, Convert flow, Features piece). The canvas is a reference only. Real copy, prices and limits

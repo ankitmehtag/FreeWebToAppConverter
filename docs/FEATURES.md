@@ -44,7 +44,7 @@ Slices and proof are defined when each feature's spec is written.
 | **F20 Reseller** | Plans, API, signed callbacks | not started |
 | **F21 Showcase and add-ons** | Showcase, publishing help | not started |
 | **F22 Multi-currency** | Admin-set prices per currency | not started |
-| **F23 Redesign** | Navy and electric blue look, all screens | built, awaiting owner review |
+| **F23 Redesign** | Navy and electric blue look, all screens | done |
 
 ## Known risk
 

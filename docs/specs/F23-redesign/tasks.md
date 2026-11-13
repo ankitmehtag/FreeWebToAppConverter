@@ -6,5 +6,5 @@
 - [x] T4 Home sections and Why band (S2, AC1)
 - [x] T5 Dashboard rows and pills (S3, AC2)
 - [x] T6 Build page check (S4)
-- [ ] T7 Typecheck, tests, build (AC3), then deploy only when the owner says
-- [ ] T8 Owner review of S1 to S4 (AC5)
+- [x] T7 Typecheck, tests, build (AC3), then deploy only when the owner says
+- [x] T8 Owner review of S1 to S4 (AC5)
