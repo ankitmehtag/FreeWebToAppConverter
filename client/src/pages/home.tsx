@@ -135,7 +135,7 @@ export const Home = () => {
         <div className="hero-phone">
           <PhonePreview
             appName={preview?.name}
-            colour="#0E7C66"
+            colour="#2F5BFF"
             startUrl={preview?.url}
             embeddable={preview?.embeddable}
             emptyText="Check your site, and see it here as an app."
@@ -171,6 +171,32 @@ export const Home = () => {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="why" aria-labelledby="why">
+        <div className="why-inner">
+          <h2 id="why">Skip the agency. Keep the app.</h2>
+          <div className="why-grid">
+            <div className="why-card">
+              <h3>Traditional app development</h3>
+              <ul>
+                <li>Developers and a long project timeline</li>
+                <li>Higher upfront cost</li>
+                <li>Store setup and maintenance</li>
+                <li>Rebuild for every change</li>
+              </ul>
+            </div>
+            <div className="why-card why-card-us">
+              <h3>With Free Website to App Converter</h3>
+              <ul>
+                <li>No coding required</li>
+                <li>An app from your existing site in about five minutes</li>
+                <li>A free plan</li>
+                <li>Simple APK installation</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="band play" aria-labelledby="play">
