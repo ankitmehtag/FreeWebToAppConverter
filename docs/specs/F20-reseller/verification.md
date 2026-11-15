@@ -30,4 +30,13 @@ Run 2026-11-16 on the developer Mac against real Mongo, Redis and the local S3 (
 - The builder image is unchanged (still v5), so no image scan is needed.
 - The reseller Pay button shows only where Razorpay keys are set on the server. Resellers exist only when the admin creates them.
 
+## Deployed 2026-11-16 (commit d5dc310)
+| Step | Result |
+|---|---|
+| `git pull`, `npm ci`, `npm run build -w client` on the server | done |
+| `docker compose -f compose.prod.yml up -d --build --wait` | api, shot, caddy, mongo, redis healthy |
+| `systemctl restart sitetoapk-worker` | active, image `sitetoapk-builder:v5` |
+| Caddy: `/resellers` and `/api/v1` were missing from the API routes, so the site's page answered them. Fixed in `deploy/Caddyfile` (d5dc310), Caddy restarted | `/resellers/nobody/brand` 404 JSON, `/resellers/me` 401, `/api/v1/apps` 401 `Invalid API key`, `/admin/api/plans` 404 for visitors, `/r/anything` and `/pricing` still the site, `/health` 200 |
+| New collections on production | `resellerCallbacks resellerKeys resellerOrders resellerPlans resellers`; 3 seed plans, 0 resellers; no errors in the API log |
+
 Sign-off: pending, owner
