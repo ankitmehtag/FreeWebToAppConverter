@@ -23,7 +23,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
   {
     path: '/pricing',
     title: `Pricing | ${SITE_NAME}`,
-    description: 'The Free plan builds a signed Android APK of your website, 3 times a day. Premium, with Google Play bundles and no watermark, is coming soon.',
+    description: 'The Free plan builds a signed Android APK of your website, 3 times a day. Premium, with Google Play bundles and no watermark, is ₹99 per app.',
   },
   {
     path: '/faq',

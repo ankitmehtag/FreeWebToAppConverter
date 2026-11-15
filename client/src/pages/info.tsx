@@ -17,7 +17,7 @@ export const Pricing = () => {
   return (
     <main className="article pricing-page">
       <h1>Pricing</h1>
-      <p className="lede">Start free. Premium, for Google Play, is on its way.</p>
+      <p className="lede">Start free. Upgrade an app to Premium when you’re ready for Google Play.</p>
       <div className="plans">
         <section className="plan" aria-labelledby="free">
           <h2 id="free">Free</h2>
@@ -32,9 +32,9 @@ export const Pricing = () => {
           </ul>
           <Link className="button" to="/sign-up">Create a free account</Link>
         </section>
-        <section className="plan plan-soon" aria-labelledby="premium">
+        <section className="plan" aria-labelledby="premium">
           <h2 id="premium">Premium</h2>
-          <p className="plan-price">₹99 <span className="field-hint">or $1, per app, one time. Coming soon.</span></p>
+          <p className="plan-price">₹99 <span className="field-hint">or $1, per app, one time.</span></p>
           <ul>
             <li>Everything in Free</li>
             <li>An Android App Bundle (AAB) ready for Google Play</li>
@@ -45,7 +45,7 @@ export const Pricing = () => {
           <p className="field-hint">
             A full refund within 7 days of payment, as long as you haven’t downloaded the signing key or the app bundle.
           </p>
-          
+          <Link className="button" to="/sign-up">Get started, upgrade in the builder</Link>
         </section>
       </div>
     </main>
