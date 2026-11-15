@@ -12,7 +12,7 @@ declare global {
 }
 
 /** Razorpay's own script, loaded when the buyer clicks. The page never handles card details. */
-const loadCheckoutScript = () =>
+export const loadCheckoutScript = () =>
   new Promise<void>((resolve, reject) => {
     if (window.Razorpay) return resolve();
     const script = document.createElement('script');

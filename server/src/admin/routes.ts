@@ -9,6 +9,9 @@ import { accountDisabled } from '@sitetoapk/shared/mail';
 import { allowOrigin, invalid } from '../auth/routes';
 import { requireCsrf, requireSession, revokeAllSessions } from '../auth/session';
 import { normalizeCode } from '../payments/coupons';
+import { keyView, revokeKey } from '../resellers/keys';
+import { cancelPlan, reinstatePlan } from '../resellers/billing';
+import { adminResellerView, isDuplicate, planCreate, planView, planEdit, resellerCreate, resellerEdit, termsOf } from '../resellers';
 import { refundOrder } from '../payments/refunds';
 import type { Payments } from '../payments/routes';
 import type { Apps } from '../apps';
@@ -309,6 +312,126 @@ export const adminRouter = ({ admin, builds, apps, payments }: Deps) => {
     await record(res, 'coupon.create', { kind: 'coupon', id: code }, body.reason, { kind: body.kind, percent: body.percent, flatInr: body.flatInr, maxUses: body.maxUses, days: body.days });
     res.status(201).json({ code });
   });
+
+  router.get('/plans', async (_req, res) => {
+    res.json({ plans: (await admin.resellers.plans.find({}, { sort: { createdAt: 1 } }).toArray()).map(planView) });
+  });
+
+  router.post('/plans', csrf, async (req, res) => {
+    const { reason: why, ...fields } = planCreate.parse(req.body);
+    try {
+      const { insertedId } = await admin.resellers.plans.insertOne({ ...fields, createdAt: new Date() });
+      await record(res, 'plan.create', { kind: 'plan', id: String(insertedId) }, why, fields);
+      res.status(201).json({ id: String(insertedId) });
+    } catch (error) {
+      if (isDuplicate(error)) return void res.status(409).json({ error: 'A plan with that name exists' });
+      throw error;
+    }
+  });
+
+  // A new price or quota reaches new joiners at once; resellers already on the plan keep their copy (R10a), unless the admin applies the quota now.
+  router.post('/plans/:id', csrf, async (req, res) => {
+    const id = new ObjectId(id24.parse(req.params.id));
+    const { reason: why, applyQuotaNow, ...changes } = planEdit.parse(req.body);
+    if (Object.keys(changes).length === 0) return void res.status(400).json({ error: 'Nothing to change' });
+    try {
+      const plan = await admin.resellers.plans.findOneAndUpdate({ _id: id }, { $set: changes }, { returnDocument: 'after' });
+      if (!plan) return void res.status(404).json({ error: 'Not found' });
+      if (applyQuotaNow && changes.buildsPerMonth !== undefined) await admin.resellers.resellers.updateMany({ planId: id }, { $set: { 'terms.buildsPerMonth': changes.buildsPerMonth } });
+      await record(res, 'plan.edit', { kind: 'plan', id: String(id) }, why, { ...changes, applyQuotaNow: Boolean(applyQuotaNow) });
+      res.status(204).end();
+    } catch (error) {
+      if (isDuplicate(error)) return void res.status(409).json({ error: 'A plan with that name exists' });
+      throw error;
+    }
+  });
+
+  router.get('/resellers', async (_req, res) => {
+    const list = await admin.resellers.resellers.find({}, { sort: { createdAt: -1 }, limit: 200 }).toArray();
+    const owners = new Map((await users.find({ _id: { $in: list.map((r) => r.userId) } }, { projection: { email: 1 } }).toArray()).map((u) => [String(u._id), String(u.email)]));
+    const plans = new Map((await admin.resellers.plans.find({ _id: { $in: list.map((r) => r.planId) } }).toArray()).map((p) => [String(p._id), String(p.name)]));
+    res.json({ resellers: list.map((r) => adminResellerView(r, owners.get(String(r.userId)) ?? null, plans.get(String(r.planId)) ?? null)) });
+  });
+
+  router.post('/resellers', csrf, async (req, res) => {
+    const { reason: why, userEmail, planId, ...brand } = resellerCreate.parse(req.body);
+    const user = await users.findOne({ email: userEmail });
+    const plan = await admin.resellers.plans.findOne({ _id: new ObjectId(planId) });
+    if (!user || !plan) return void res.status(404).json({ error: 'User or plan not found' });
+    try {
+      const { insertedId } = await admin.resellers.resellers.insertOne({ ...brand, userId: user._id, planId: plan._id, terms: termsOf(plan), quota: { bonus: 0, used: 0, periodStart: new Date() }, createdAt: new Date() });
+      await record(res, 'reseller.create', { kind: 'reseller', id: String(insertedId) }, why, { slug: brand.slug, planId });
+      res.status(201).json({ id: String(insertedId) });
+    } catch (error) {
+      if (isDuplicate(error)) return void res.status(409).json({ error: 'That slug is taken or the user is already a reseller' });
+      throw error;
+    }
+  });
+
+  router.post('/resellers/:id', csrf, async (req, res) => {
+    const id = new ObjectId(id24.parse(req.params.id));
+    const { reason: why, planId, addQuota, resetQuota, ...fields } = resellerEdit.parse(req.body);
+    const set: Document = { ...fields };
+    if (planId) {
+      const plan = await admin.resellers.plans.findOne({ _id: new ObjectId(planId) });
+      if (!plan) return void res.status(404).json({ error: 'Plan not found' });
+      set.planId = plan._id;
+      set.terms = termsOf(plan);
+    }
+    if (resetQuota) Object.assign(set, { 'quota.used': 0, 'quota.periodStart': new Date() });
+    const update: Document = { $set: set };
+    if (addQuota) update.$inc = { 'quota.bonus': addQuota };
+    if (Object.keys(set).length === 0 && !update.$inc) return void res.status(400).json({ error: 'Nothing to change' });
+    if (Object.keys(set).length === 0) delete update.$set;
+    try {
+      const { matchedCount } = await admin.resellers.resellers.updateOne({ _id: id }, update);
+      if (!matchedCount) return void res.status(404).json({ error: 'Not found' });
+      await record(res, 'reseller.edit', { kind: 'reseller', id: String(id) }, why, { ...fields, planId, addQuota, resetQuota });
+      res.status(204).end();
+    } catch (error) {
+      if (isDuplicate(error)) return void res.status(409).json({ error: 'That slug is taken' });
+      throw error;
+    }
+  });
+
+  router.get('/resellers/:id/keys', async (req, res) => {
+    const keys = await admin.resellers.keys.find({ resellerId: new ObjectId(id24.parse(req.params.id)) }, { sort: { createdAt: -1 } }).toArray();
+    res.json({ keys: keys.map(keyView) });
+  });
+
+  router.post('/resellers/:id/keys/:keyId/revoke', csrf, async (req, res) => {
+    const id = new ObjectId(id24.parse(req.params.id));
+    const keyId = new ObjectId(id24.parse(req.params.keyId));
+    const { reason: why } = reasonBody.parse(req.body);
+    if (!(await revokeKey(admin.resellers, id, keyId))) return void res.status(404).json({ error: 'Not found' });
+    await record(res, 'reseller.key.revoke', { kind: 'reseller', id: String(id) }, why, { keyId: String(keyId) });
+    res.status(204).end();
+  });
+
+  const setSuspended = (suspend: boolean) => async (req: Request, res: Response) => {
+    const id = new ObjectId(id24.parse(req.params.id));
+    const { reason: why } = reasonBody.parse(req.body);
+    const { matchedCount } = await admin.resellers.resellers.updateOne({ _id: id }, suspend ? { $set: { suspendedAt: new Date() } } : { $unset: { suspendedAt: '' } });
+    if (!matchedCount) return void res.status(404).json({ error: 'Not found' });
+    await record(res, suspend ? 'reseller.suspend' : 'reseller.reactivate', { kind: 'reseller', id: String(id) }, why);
+    res.status(204).end();
+  };
+  router.post('/resellers/:id/cancel-plan', csrf, async (req, res) => {
+    const id = new ObjectId(id24.parse(req.params.id));
+    const { reason: why } = reasonBody.parse(req.body);
+    if (!(await cancelPlan(admin.resellers, id))) return void res.status(404).json({ error: 'Not found' });
+    await record(res, 'reseller.plan.cancel', { kind: 'reseller', id: String(id) }, why);
+    res.status(204).end();
+  });
+  router.post('/resellers/:id/reinstate-plan', csrf, async (req, res) => {
+    const id = new ObjectId(id24.parse(req.params.id));
+    const { reason: why } = reasonBody.parse(req.body);
+    if (!(await reinstatePlan(admin.resellers, id))) return void res.status(404).json({ error: 'Not found' });
+    await record(res, 'reseller.plan.reinstate', { kind: 'reseller', id: String(id) }, why);
+    res.status(204).end();
+  });
+  router.post('/resellers/:id/suspend', csrf, setSuspended(true));
+  router.post('/resellers/:id/reactivate', csrf, setSuspended(false));
 
   router.use((_req, res) => notFound(res));
   router.use(invalid);

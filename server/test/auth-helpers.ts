@@ -13,6 +13,7 @@ import type { Payments } from '../src/payments/routes';
 import { verifyRazorpayWebhook } from '../src/payments/razorpay';
 import type { CheckoutInput, PaymentProvider } from '../src/payments/provider';
 import { prepareAdmin } from '../src/admin';
+import { prepareResellers } from '../src/resellers';
 import { codeNow, newSecret, seal } from '../src/admin/totp';
 import { createApp } from '../src/app';
 import { prepareApps } from '../src/apps';
@@ -116,8 +117,9 @@ export const makeHarness = async (
     verifyPayment: (providerOrderId, paymentId, signature) => signature === createHmac('sha256', KEY_SECRET).update(`${providerOrderId}|${paymentId}`).digest('hex'),
     verifyWebhook: (rawBody, headers) => verifyRazorpayWebhook(WEBHOOK_SECRET, rawBody, headers),
   };
-  const payments = { ...pay, apps: apps.apps, users: db.collection('users'), keystores: keystores as never, builds: builds.builds, mailer: { send: async (mail: Mail) => void sent.push(mail) }, appUrl: APP_URL, providers: { razorpay: razorpayFake } as Payments['providers'] };
-  const admin = await prepareAdmin({ db, auth, adminEmails: [ADMIN_EMAIL] });
+  const resellers = await prepareResellers(db, { mailer: auth.mailer, users: db.collection('users'), appUrl: APP_URL });
+  const payments = { ...pay, resellers, apps: apps.apps, users: db.collection('users'), keystores: keystores as never, builds: builds.builds, mailer: { send: async (mail: Mail) => void sent.push(mail) }, appUrl: APP_URL, providers: { razorpay: razorpayFake } as Payments['providers'] };
+  const admin = await prepareAdmin({ db, auth, adminEmails: [ADMIN_EMAIL], resellers });
   const server: Server = createApp({ checkMongo: async () => {}, checkRedis: async () => {}, auth, fetchUrl, apps, builds, trustProxy, unsafe: unsafeLookup && createUnsafeChecker(redis, unsafeLookup), reports, screenshot, keys: { keystores, downloads, ring }, payments, admin }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

@@ -4,6 +4,7 @@ import { applyEvent } from './events';
 import { finishReceipt } from './receipts';
 import { markPaid } from './unlock';
 import type { Payments } from './routes';
+import { reconcileResellerOrders } from '../resellers/billing';
 
 /** An order is left alone this long, so the usual webhook gets there first. */
 export const STUCK_AFTER_MS = 30 * 60 * 1000;
@@ -64,5 +65,6 @@ export const reconcile = async (payments: Payments, now = new Date()) => {
     // A receipt cut off before its number or its email.
     if (!order.receiptEmailedAt) await finishReceipt(payments, order._id);
   }
+  if (payments.resellers) await reconcileResellerOrders(payments.resellers, payments, (provider, event) => applyEvent(payments, provider, event, 'reconcile'), now);
   return result;
 };

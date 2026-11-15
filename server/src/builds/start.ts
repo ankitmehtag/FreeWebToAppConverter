@@ -8,6 +8,8 @@ import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } f
 import type { Auth } from '../auth';
 import { buildIconKey } from '../apps/icons';
 import type { FetchUrl } from '../url/fetcher';
+import type { Resellers } from '../resellers';
+import { claimBuild, returnBuild, warnQuota } from '../resellers/quota';
 import type { Builds } from './index';
 
 const DUPLICATE_KEY = 11000;
@@ -81,9 +83,9 @@ const sitesOf = async (config: NonNullable<ReturnType<typeof toAppConfig>>, fetc
   return [config.startUrl, ...(final ? [final] : []), ...config.internalHosts.map(hostUrl)];
 };
 
-type Safety = { fetchUrl?: FetchUrl; unsafe?: UnsafeChecker };
+type Safety = { fetchUrl?: FetchUrl; unsafe?: UnsafeChecker; resellers?: Resellers };
 
-export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUrl, unsafe }: Safety = {}) => async (req: Request, res: Response) => {
+export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUrl, unsafe, resellers }: Safety = {}) => async (req: Request, res: Response) => {
   const { idempotencyKey, versionName } = startRequest.parse(req.body);
   const ownerId = res.locals.session.userId as ObjectId;
   const appIdText = String(req.params.id);
@@ -120,9 +122,16 @@ export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUr
     const user = await auth.users.findOne({ _id: ownerId });
     if (!user?.emailVerifiedAt) return refuse(403, 'email_unverified', 'Confirm your email before building');
 
+    // A reseller's monthly quota is their limit, so it replaces the daily one below. It is handed back on any refusal or failure of ours after this, so only a started build uses quota.
+    const claim = resellers ? await claimBuild(resellers, ownerId) : ({ kind: 'none' } as const);
+    if (claim.kind === 'refused') return refuse(claim.status, claim.reason, claim.message);
+    const giveBack = async () => {
+      if (resellers && claim.kind === 'ok') await returnBuild(resellers, claim.resellerId);
+    };
+
     const since = new Date(Date.now() - config.windowMs);
     const counted = { ownerId, createdAt: { $gte: since }, countsTowardLimit: { $ne: false } };
-    if ((await builds.countDocuments(counted)) >= config.dailyLimit) {
+    if (claim.kind === 'none' && (await builds.countDocuments(counted)) >= config.dailyLimit) {
       const oldest = await builds.findOne(counted, { sort: { createdAt: 1 } });
       const nextAllowedAt = new Date(oldest!.createdAt.getTime() + config.windowMs);
       return refuse(429, 'daily_limit', `You can start ${config.dailyLimit} builds a day`, { nextAllowedAt });
@@ -144,6 +153,7 @@ export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUr
         idempotencyKey,
       });
     } catch (error) {
+      await giveBack();
       if ((error as { code?: number }).code !== DUPLICATE_KEY) throw error;
       const running = await builds.findOne({ activeAppId: appId });
       return refuse(409, 'build_running', 'This app is already building', { buildId: running ? String(running._id) : undefined });
@@ -155,12 +165,14 @@ export const startBuild = (auth: Auth, apps: Collection, deps: Builds, { fetchUr
         { $inc: { versionCode: 1, buildCount: 1 } },
         { returnDocument: 'after' },
       );
-      await builds.updateOne({ _id: id as never }, { $set: { versionCode: counter!.versionCode } });
+      await builds.updateOne({ _id: id as never }, { $set: { versionCode: counter!.versionCode, ...(claim.kind === 'ok' ? { resellerId: claim.resellerId } : {}) } });
       await storage.copy(app.iconKey, buildIconKey(id));
       await queueBuild(queue as never, id);
+      if (resellers?.notify && claim.kind === 'ok') warnQuota(resellers, claim);
     } catch (error) {
       // Our failure, so it doesn't use up one of the user's builds.
       await setStatus(builds, id, 'failed', { error: (error as Error).message, failureKind: 'infra', countsTowardLimit: false });
+      await giveBack();
       throw error;
     }
     return { kind: 'started', build: (await builds.findOne({ _id: id as never }))! };

@@ -10,6 +10,10 @@ import { createIconStore } from './apps/icons';
 import { prepareOrders } from './payments/orders';
 import { razorpay } from './payments/razorpay';
 import { reconcile } from './payments/reconcile';
+import { lapseExpired } from './resellers/billing';
+import { runCallbacks } from './resellers/callbacks';
+import { prepareResellers } from './resellers';
+import { createPoster } from './url/poster';
 import type { Payments } from './payments/routes';
 import { prepareBuilds } from './builds';
 import { prepareReports } from './abuse/reports';
@@ -94,6 +98,9 @@ const auth = await prepareAuth({
 const pushAccount = serviceAccountFromEnv();
 const pushSender = () => (pushAccount ? (appId: string, message: { title: string; body: string }) => sendToApp(pushAccount, appId, message) : undefined);
 
+// Reseller plans, payments and emails (F20). One set, shared by the admin panel and the payment webhook.
+const resellers = await prepareResellers(mongo.db(), { mailer, users: auth.users, appUrl: requireEnv('APP_URL') });
+
 // Off until a Razorpay key pair is set, so nothing is for sale before the owner decides.
 const payments: Payments | undefined = process.env.RAZORPAY_KEY_ID
   ? {
@@ -103,6 +110,7 @@ const payments: Payments | undefined = process.env.RAZORPAY_KEY_ID
       keystores: mongo.db().collection('keystores'),
       builds: mongo.db().collection('builds'),
       mailer,
+      resellers,
       appUrl: requireEnv('APP_URL'),
       providers: {
         razorpay: razorpay({
@@ -118,6 +126,30 @@ if (payments) {
   const sweep = () => reconcile(payments).catch((error) => console.error('Reconcile failed', error instanceof Error ? error.message : 'unknown'));
   setInterval(sweep, 10 * 60 * 1000).unref();
   void sweep();
+}
+
+// Off until an admin email is named.
+const admin = process.env.ADMIN_EMAILS ? await prepareAdmin({ db: mongo.db(), auth, adminEmails: process.env.ADMIN_EMAILS.split(','), contactEmail: process.env.REPORTS_EMAIL || undefined, resellers }) : undefined;
+const builds = await prepareBuilds({
+  db: mongo.db(),
+  redis,
+  queue: new Queue(QUEUE_NAME, { connection: { url: requireEnv('REDIS_URL') } }),
+  storage,
+  config: { dailyLimit: 3, windowMs: 24 * 60 * 60 * 1000, installUrl: process.env.INSTALL_URL || undefined },
+});
+
+// Plans whose paid month has ended lapse. Checked every ten minutes, and once at start.
+if (admin) {
+  const lapse = () => lapseExpired(admin.resellers).catch((error) => console.error('Plan lapse check failed', error instanceof Error ? error.message : 'unknown'));
+  setInterval(lapse, 10 * 60 * 1000).unref();
+  void lapse();
+}
+
+// Reseller callbacks: finished builds are queued and sent every 15 seconds, with retries.
+if (admin) {
+  const post = createPoster();
+  const tick = () => runCallbacks(admin.resellers, builds.builds, post).catch((error) => console.error('Callbacks failed', error instanceof Error ? error.message : 'unknown'));
+  setInterval(tick, 15_000).unref();
 }
 
 const app = createApp({
@@ -136,19 +168,12 @@ const app = createApp({
     ? { keystores: await prepareKeystores(mongo.db()), downloads: mongo.db().collection('keystoreDownloads'), ring: parseKeyring(process.env.KEYSTORE_MASTER_KEY) }
     : undefined,
   payments,
-  // Off until an admin email is named.
-  admin: process.env.ADMIN_EMAILS ? await prepareAdmin({ db: mongo.db(), auth, adminEmails: process.env.ADMIN_EMAILS.split(','), contactEmail: process.env.REPORTS_EMAIL || undefined }) : undefined,
+  admin,
   reports: await prepareReports(mongo.db(), process.env.REPORTS_EMAIL || undefined),
   // Off until a key is set: the owner chose not to pay for a lookup service yet (F10).
   unsafe: process.env.WEB_RISK_API_KEY ? createUnsafeChecker(redis, webRiskLookup(process.env.WEB_RISK_API_KEY)) : undefined,
   apps: await prepareApps(mongo.db(), storage, pushSender()),
-  builds: await prepareBuilds({
-    db: mongo.db(),
-    redis,
-    queue: new Queue(QUEUE_NAME, { connection: { url: requireEnv('REDIS_URL') } }),
-    storage,
-    config: { dailyLimit: 3, windowMs: 24 * 60 * 60 * 1000, installUrl: process.env.INSTALL_URL || undefined },
-  }),
+  builds,
 });
 
 const server = app.listen(port, () => console.log(`API listening on port ${port}`));

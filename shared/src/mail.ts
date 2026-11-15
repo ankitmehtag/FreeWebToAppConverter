@@ -3,8 +3,12 @@ export type Message = { subject: string; text: string; html?: string };
 
 export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
+/** A reseller's look for the emails its clients' builds send. */
+export type MailBrand = { name: string; accent: string; showBuiltWith: boolean };
+
 type Layout = {
   appUrl: string;
+  brand?: MailBrand;
   heading: string;
   /** Plain paragraphs. They are escaped here, so callers pass raw text. */
   paragraphs: string[];
@@ -16,19 +20,25 @@ type Layout = {
 const site = (appUrl: string) => appUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
 /** One plain, single-column layout: no images, no scripts, readable in dark mode. */
-const html = ({ appUrl, heading, paragraphs, button, why }: Layout) => `<!doctype html>
+const ACCENT = '#0f766e';
+
+const html = ({ appUrl, brand, heading, paragraphs, button, why }: Layout) => {
+  // A colour that is not plain hex never reaches the style attribute.
+  const accent = brand && /^#[0-9a-fA-F]{6}$/.test(brand.accent) ? brand.accent : ACCENT;
+  return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
 <style>@media (prefers-color-scheme: dark){.bg{background:#14181b!important}.card{background:#1d2327!important;color:#eef2f4!important}.muted{color:#9aa7ae!important}}</style></head>
 <body class="bg" style="margin:0;padding:24px 12px;background:#f3f6f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
 <div class="card" style="max-width:520px;margin:0 auto;padding:28px;background:#ffffff;color:#1a1f23;border-radius:12px;line-height:1.55;font-size:16px">
-<div style="font-weight:700;color:#0f766e;margin-bottom:16px">${escapeHtml(site(appUrl))}</div>
+<div style="font-weight:700;color:${accent};margin-bottom:16px">${escapeHtml(brand ? brand.name : site(appUrl))}</div>
 <h1 style="font-size:20px;margin:0 0 14px">${escapeHtml(heading)}</h1>
 ${paragraphs.map((p) => `<p style="margin:0 0 14px;white-space:pre-line">${escapeHtml(p)}</p>`).join('\n')}
-${button ? `<p style="margin:22px 0"><a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 20px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600">${escapeHtml(button.label)}</a></p>
+${button ? `<p style="margin:22px 0"><a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 20px;background:${accent};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600">${escapeHtml(button.label)}</a></p>
 <p class="muted" style="margin:0 0 14px;font-size:13px;color:#5b6870;word-break:break-all">Or paste this link into your browser: ${escapeHtml(button.url)}</p>` : ''}
 <hr style="border:none;border-top:1px solid #d5dde1;margin:22px 0 14px">
-<p class="muted" style="margin:0;font-size:12px;color:#5b6870">${escapeHtml(why)}</p>
+<p class="muted" style="margin:0;font-size:12px;color:#5b6870">${escapeHtml(why)}${brand?.showBuiltWith ? escapeHtml(` Built with ${site(appUrl)}.`) : ''}</p>
 </div></body></html>`;
+};
 
 const message = (subject: string, text: string, layout: Layout): Message => ({ subject, text, html: html(layout) });
 
@@ -100,16 +110,42 @@ export const refunded = ({ appUrl, receiptNo, appName, amount, currency }: { app
   });
 };
 
-export const buildReady = ({ appUrl, appName, link }: { appUrl: string; appName: string; link: string }) =>
+export const buildReady = ({ appUrl, appName, link, brand }: { appUrl: string; appName: string; link: string; brand?: MailBrand }) =>
   message(`Your app ${appName} is ready`, `Your app ${appName} is ready to download:\n${link}`, {
-    appUrl, heading: `Your app ${appName} is ready`, paragraphs: ['Your app is built and ready to download.'],
+    appUrl, brand, heading: `Your app ${appName} is ready`, paragraphs: ['Your app is built and ready to download.'],
     button: { label: 'Open the build page', url: link }, why: 'You are getting this because a build of your app finished.',
   });
 
-export const buildFailed = ({ appUrl, appName, link }: { appUrl: string; appName: string; link: string }) =>
+export const buildFailed = ({ appUrl, appName, link, brand }: { appUrl: string; appName: string; link: string; brand?: MailBrand }) =>
   message(`Your app ${appName} could not be built`, `The build for ${appName} failed. See what went wrong:\n${link}`, {
-    appUrl, heading: `The build for ${appName} failed`, paragraphs: ['Open the build page to see what went wrong.'],
+    appUrl, brand, heading: `The build for ${appName} failed`, paragraphs: ['Open the build page to see what went wrong.'],
     button: { label: 'See what went wrong', url: link }, why: 'You are getting this because a build of your app ended with an error.',
+  });
+
+/** Emails to a reseller about their own account. They carry our name, not the reseller's brand. */
+export const resellerStarted = ({ appUrl, brandName, planName, buildsPerMonth, price, link }: { appUrl: string; brandName: string; planName: string; buildsPerMonth: number; price: string; link: string }) =>
+  message(`${brandName} is on the ${planName} plan`, `${brandName} is now on the ${planName} plan: ${buildsPerMonth} builds a month for ${price} a month.\nYour dashboard:\n${link}`, {
+    appUrl, heading: `${brandName} is on the ${planName} plan`, paragraphs: [`Your plan gives you ${buildsPerMonth} builds a month for ${price} a month. The count starts again at each renewal, and unused builds do not carry over.`],
+    button: { label: 'Open your dashboard', url: link }, why: 'You are getting this because a subscription for your reseller account started.',
+  });
+
+/** The paid month ended without a new payment. Plans are paid by hand, month by month, so this is a renewal notice, not a failed charge. */
+export const resellerPaymentFailed = ({ appUrl, brandName, planName, link }: { appUrl: string; brandName: string; planName: string; link: string }) =>
+  message(`The ${planName} plan of ${brandName} needs renewing`, `The paid month of the ${planName} plan of ${brandName} has ended, so new builds are paused.\nYour apps and downloads keep working. Pay for the next month to start building again:\n${link}`, {
+    appUrl, heading: `The ${planName} plan needs renewing`, paragraphs: [`The paid month of the ${planName} plan has ended, so new builds are paused.`, 'Your apps and downloads keep working. Pay for the next month from your dashboard to start building again.'],
+    button: { label: 'Renew the plan', url: link }, why: 'You are getting this because the paid month of your reseller plan ended.',
+  });
+
+export const resellerQuotaNearlyUsed = ({ appUrl, brandName, used, limit, link }: { appUrl: string; brandName: string; used: number; limit: number; link: string }) =>
+  message(`${brandName} has used ${used} of ${limit} builds`, `${brandName} has used ${used} of ${limit} builds this month. When they run out, new builds wait until the plan renews.\n${link}`, {
+    appUrl, heading: `${used} of ${limit} builds used this month`, paragraphs: [`When the builds run out, new builds wait until the plan renews. Your apps and downloads keep working.`],
+    button: { label: 'Open your dashboard', url: link }, why: 'You are getting this once a month, when a plan is four-fifths used.',
+  });
+
+export const resellerCancelled = ({ appUrl, brandName, planName, link }: { appUrl: string; brandName: string; planName: string; link: string }) =>
+  message(`The ${planName} plan of ${brandName} was cancelled`, `The ${planName} plan of ${brandName} was cancelled. Your apps and downloads keep working, but new builds are paused.\n${link}`, {
+    appUrl, heading: `The ${planName} plan was cancelled`, paragraphs: ['Your apps and downloads keep working. New builds are paused until a plan is active again.'],
+    button: { label: 'Open your dashboard', url: link }, why: 'You are getting this because the subscription for your reseller account ended.',
   });
 
 export const buildExpiring = ({ appUrl, appName, link, expiresAt }: { appUrl: string; appName: string; link: string; expiresAt: Date }) => {

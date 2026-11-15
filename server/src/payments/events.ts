@@ -4,6 +4,7 @@ import { closeOrder } from './refunds';
 import { markPaid } from './unlock';
 import type { Payments } from './routes';
 import type { ProviderName, WebhookEvent } from './provider';
+import { resellerEvent } from '../resellers/billing';
 
 export type Outcome = 'applied' | 'duplicate' | 'ignored' | 'mismatch' | 'unknown-order';
 
@@ -26,6 +27,10 @@ export const applyEvent = async (payments: Payments, provider: ProviderName, eve
     await providerEvents.updateOne({ provider, eventId: event.eventId }, { $set: { handledAt: new Date(), outcome } });
     return outcome;
   };
+
+  // A reseller's plan payment is settled by F20; anything else is an app order.
+  const mine = payments.resellers ? await resellerEvent(payments.resellers, provider, event) : null;
+  if (mine) return done(mine);
 
   if (event.type === 'refunded') {
     const refunded = event.paymentId ? await orders.findOne({ provider, paymentId: event.paymentId }) : null;

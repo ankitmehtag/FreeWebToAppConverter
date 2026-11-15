@@ -1,5 +1,5 @@
 import cookieParser from 'cookie-parser';
-import express, { Router, type ErrorRequestHandler, type Response } from 'express';
+import express, { Router, type ErrorRequestHandler, type RequestHandler, type Response } from 'express';
 import { ObjectId, type Document } from 'mongodb';
 import { z } from 'zod';
 import { draftSchema, toAppConfig, type Draft } from '@sitetoapk/shared';
@@ -11,11 +11,12 @@ import { requireCsrf, requireSession } from '../auth/session';
 import { hostUrl, UNSAFE_MESSAGE, UnsafeCheckUnavailable, type UnsafeChecker } from '../abuse/unsafe';
 import type { FetchUrl } from '../url/fetcher';
 import { iconKey } from './icons';
-import { planOf } from './plan';
+import { planOf, setPlan } from './plan';
 import { MAX_APPS_PER_USER, PUSH_PER_DAY, type Apps } from './index';
 import { prefill } from './prefill';
 import type { Builds } from '../builds';
 import { buildView, startBuild } from '../builds/start';
+import type { Resellers } from '../resellers';
 
 const DUPLICATE_KEY = 11000;
 
@@ -87,12 +88,23 @@ const unsafeFields = async (unsafe: UnsafeChecker | undefined, draft: Draft, bef
 
 const pushRequest = z.strictObject({ title: z.string().trim().min(1).max(60), body: z.string().trim().min(1).max(200) });
 
-export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, fetchUrl?: FetchUrl, builds?: Builds, unsafe?: UnsafeChecker) => {
+export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, fetchUrl?: FetchUrl, builds?: Builds, unsafe?: UnsafeChecker, resellers?: Resellers, external = false) => {
   const router = Router();
   const session = requireSession(auth);
-  const csrf = requireCsrf(auth);
+  // `external` is the reseller API: the caller was already identified by key, so there is no cookie, origin or CSRF check, and only these routes exist.
+  const csrf: RequestHandler = external ? (_req, _res, next) => next() : requireCsrf(auth);
 
-  router.use(allowOrigin(auth), cookieParser(), express.json({ limit: '10kb' }), session);
+  if (external) {
+    const allowed = (method: string, path: string) =>
+      (path === '/' && (method === 'GET' || method === 'POST')) ||
+      (/^\/[^/]+$/.test(path) && path !== '/prefill' && (method === 'GET' || method === 'PUT')) ||
+      (method === 'POST' && /^\/[^/]+\/(icon|builds)$/.test(path)) ||
+      (method === 'GET' && /^\/[^/]+\/builds$/.test(path));
+    router.use((req, res, next) => (allowed(req.method, req.path) ? next() : notFound(res)));
+    router.use(express.json({ limit: '10kb' }));
+  } else {
+    router.use(allowOrigin(auth), cookieParser(), express.json({ limit: '10kb' }), session);
+  }
 
   /** The newest build of each app, found in one query. */
   const latestBuilds = async (ownerId: ObjectId, appIds: ObjectId[]) => {
@@ -115,7 +127,9 @@ export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, 
 
   router.post('/', csrf, async (req, res) => {
     const draft = draftSchema.parse(req.body);
-    if (draft.ads?.enabled) return adsPremium(res);
+    // A reseller's apps are Premium (own signing key, ads allowed), as part of their plan.
+    const reseller = resellers ? await resellers.resellers.findOne({ userId: ownerOf(res), suspendedAt: { $exists: false } }) : null;
+    if (draft.ads?.enabled && !reseller) return adsPremium(res);
     const listed = await unsafeFields(unsafe, draft);
     if (listed) return res.status(400).json({ error: 'Invalid request', fields: listed });
     const ownerId = ownerOf(res);
@@ -127,7 +141,8 @@ export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, 
     const app = { ownerId, draft, ready: false, buildCount: 0, createdAt: now, updatedAt: now };
     try {
       const { insertedId } = await apps.insertOne(app);
-      res.status(201).json(view({ ...app, _id: insertedId }));
+      if (reseller) await setPlan(apps, insertedId, 'premium');
+      res.status(201).json(view({ ...app, _id: insertedId, ...(reseller ? { plan: 'premium' } : {}) }));
     } catch (error) {
       if (!isDuplicate(error)) throw error;
       duplicateName(res);
@@ -141,7 +156,7 @@ export const appsRouter = (auth: Auth, { apps, icons, pushes, sendPush }: Apps, 
     });
   }
 
-  if (builds) router.post('/:id/builds', csrf, limitRoute(auth, 'build-start'), startBuild(auth, apps, builds, { fetchUrl, unsafe }));
+  if (builds) router.post('/:id/builds', csrf, limitRoute(auth, 'build-start'), startBuild(auth, apps, builds, { fetchUrl, unsafe, resellers }));
 
   router.get('/:id', async (req, res) => {
     const filter = appFilter(res, req.params.id);

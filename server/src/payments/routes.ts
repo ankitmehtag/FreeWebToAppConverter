@@ -13,6 +13,7 @@ import { discounted, findUsable, normalizeCode, redeem, releaseCoupon } from './
 import { isCurrency, premiumPrice, type Currency } from './prices';
 import { markPaid } from './unlock';
 import type { PaymentProvider, ProviderName } from './provider';
+import type { Resellers } from '../resellers';
 
 export type Payments = Awaited<ReturnType<typeof prepareOrders>> & {
   apps: Collection<Document>;
@@ -24,6 +25,8 @@ export type Payments = Awaited<ReturnType<typeof prepareOrders>> & {
   mailer?: Mailer;
   /** The site's address, for links and footers in emails. */
   appUrl?: string;
+  /** Monthly plan payments of resellers (F20) travel through the same provider, webhook and sweep. */
+  resellers?: Resellers;
   /** Only providers with keys set. INR goes to Razorpay; USD waits for Stripe. */
   providers: Partial<Record<ProviderName, PaymentProvider>>;
 };

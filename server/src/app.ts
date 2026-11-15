@@ -4,6 +4,7 @@ import { reportsRouter, type Reports } from './abuse/reports';
 import type { UnsafeChecker } from './abuse/unsafe';
 import type { Admin } from './admin';
 import { adminRouter } from './admin/routes';
+import { apiRouter, resellersRouter } from './resellers/routes';
 import type { Apps } from './apps';
 import { appsRouter } from './apps/routes';
 import type { Builds } from './builds';
@@ -66,15 +67,17 @@ export const createApp = ({ checkMongo, checkRedis, checkTimeoutMs = 2000, auth,
 
   if (auth) app.use('/auth', authRouter(auth));
   if (auth && fetchUrl) app.use('/url', urlRouter(auth, fetchUrl, unsafe, screenshot));
-  if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl, builds, unsafe));
+  if (auth && apps) app.use('/apps', appsRouter(auth, apps, fetchUrl, builds, unsafe, admin?.resellers));
   if (admin) app.use('/admin/api', adminRouter({ admin, builds, apps, payments }));
+  if (auth && admin) app.use('/resellers', resellersRouter(auth, admin.resellers, payments));
+  if (auth && apps && admin) app.use('/api/v1', apiRouter(auth, admin.resellers, builds, appsRouter(auth, apps, fetchUrl, builds, unsafe, admin.resellers, true)));
   if (auth && keys) app.use('/keystores', keysRouter(auth, keys));
   // Webhooks first: they need the raw body and carry no session.
   if (payments) app.use('/payments/webhooks', webhooksRouter(payments));
   if (auth && payments) app.use('/payments', paymentsRouter(auth, payments));
   if (auth && builds) {
     // Mounted first, because a phone opening an install link has no session.
-    app.use('/builds/install', installRouter(auth, builds));
+    app.use('/builds/install', installRouter(auth, builds, admin?.resellers));
     app.use('/builds', buildsRouter(auth, builds));
     if (reports) app.use('/reports', reportsRouter(auth, builds, reports));
   }

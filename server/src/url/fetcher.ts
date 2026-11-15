@@ -30,7 +30,7 @@ export type FetchedPage = { url: string; status: number; headers: IncomingHttpHe
 
 export type FetchUrl = (url: string) => Promise<FetchedPage>;
 
-const parseUrl = (raw: string, base: string | undefined, ports: number[]) => {
+export const parseUrl = (raw: string, base: string | undefined, ports: number[]) => {
   let url: URL;
   try {
     url = new URL(raw, base);
@@ -44,7 +44,7 @@ const parseUrl = (raw: string, base: string | undefined, ports: number[]) => {
 };
 
 /** Every address must pass, so a public record can't carry a private one past the check. */
-const pinAddress = async (url: URL, resolve: NonNullable<FetcherOptions['resolve']>, isAllowed: (ip: string) => boolean) => {
+export const pinAddress = async (url: URL, resolve: NonNullable<FetcherOptions['resolve']>, isAllowed: (ip: string) => boolean) => {
   const host = url.hostname.replace(/^\[|\]$/g, '');
   const addresses = ipaddr.isValid(host)
     ? [{ address: host, family: host.includes(':') ? 6 : 4 }]

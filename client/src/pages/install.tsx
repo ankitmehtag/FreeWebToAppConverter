@@ -2,8 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router';
 import { api, ApiError } from '../api';
 import { megabytes } from './build';
+import { brandStyle, BuiltWith, type Brand } from './reseller';
 
-type InstallInfo = { appName: string; versionName: string; versionCode: number; artifactBytes: number };
+type InstallInfo = { brand?: Brand; appName: string; versionName: string; versionCode: number; artifactBytes: number };
 
 type Problem = 'expired' | 'busy' | 'offline';
 
@@ -98,8 +99,14 @@ export const InstallPage = () => {
   if (!info) return <p className="loading">Loading…</p>;
 
   return (
-    <main className="account">
+    <main className="account" style={info.brand ? brandStyle(info.brand.accent) : undefined}>
       <section className="account-card install-card">
+        {info.brand && (
+          <p className="reseller-brand">
+            {info.brand.logoUrl && <img src={info.brand.logoUrl} alt="" className="reseller-logo" referrerPolicy="no-referrer" />}
+            <span className="wordmark">{info.brand.brandName}</span>
+          </p>
+        )}
         <img src={`/builds/install/${token}/icon`} alt="" className="install-icon" />
         <h1>{info.appName}</h1>
         <p className="field-hint">Version {info.versionName} · {megabytes(info.artifactBytes)}</p>
@@ -111,6 +118,7 @@ export const InstallPage = () => {
         </ol>
         <p className="field-hint">This app comes from outside Google Play, so Android may warn you. Install it only if you made it, or trust who sent the link.</p>
         <ReportForm token={token} />
+        {info.brand?.showBuiltWith && <BuiltWith />}
       </section>
     </main>
   );

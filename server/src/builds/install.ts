@@ -6,6 +6,7 @@ import { buildIconKey } from '../apps/icons';
 import { limitRoute } from '../auth/limits';
 import { invalid } from '../auth/routes';
 import { randomToken, sha256 } from '../auth/tokens';
+import { brandView, type Resellers } from '../resellers';
 import type { Builds } from './index';
 import { downloadLink } from './routes';
 
@@ -21,7 +22,7 @@ export const createInstallLink = async (auth: Auth, deps: Builds, build: Documen
 };
 
 /** The public routes behind an install link. Every failure looks the same, so tokens can't be probed. */
-export const installRouter = (auth: Auth, deps: Builds) => {
+export const installRouter = (auth: Auth, deps: Builds, resellers?: Resellers) => {
   const router = Router();
   router.use(express.json({ limit: '1kb' }));
 
@@ -41,7 +42,9 @@ export const installRouter = (auth: Auth, deps: Builds) => {
   router.get('/:token', async (req, res) => {
     const build = await buildFor(req);
     if (!build) return gone(res);
+    const reseller = resellers && build.resellerId ? await resellers.resellers.findOne({ _id: build.resellerId }) : null;
     res.set('Cache-Control', 'no-store').json({
+      brand: reseller ? brandView(reseller) : undefined,
       appName: build.config.appName,
       versionName: build.versionName,
       versionCode: build.versionCode,

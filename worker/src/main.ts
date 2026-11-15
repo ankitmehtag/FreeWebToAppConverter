@@ -29,7 +29,7 @@ const logs = createLogSink(new Redis(requireEnv('REDIS_URL')), mongo.db().collec
 
 const mailKey = process.env.RESEND_API_KEY;
 const notify = mailKey
-  ? createNotifier({ users: mongo.db().collection('users'), apiKey: mailKey, from: requireEnv('MAIL_FROM'), appUrl: requireEnv('APP_URL') })
+  ? createNotifier({ users: mongo.db().collection('users'), resellers: mongo.db().collection('resellers'), apiKey: mailKey, from: requireEnv('MAIL_FROM'), appUrl: requireEnv('APP_URL') })
   : undefined;
 
 // Premium apps sign with their own key. Without the master key they cannot be built, and Free builds go on.

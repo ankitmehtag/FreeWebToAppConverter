@@ -1,22 +1,25 @@
 import type { Collection } from 'mongodb';
-import { buildFailed, buildReady } from '@sitetoapk/shared/mail';
+import { buildFailed, buildReady, type MailBrand } from '@sitetoapk/shared/mail';
 import type { BuildRequest } from './builds';
 
 const RESEND_URL = 'https://api.resend.com/emails';
 
 export type Notifier = (build: BuildRequest, outcome: 'success' | 'failed') => Promise<void>;
 
-type NotifyOptions = { users: Collection; apiKey: string; from: string; appUrl: string };
+type NotifyOptions = { users: Collection; /** A reseller's builds are emailed in the reseller's brand. */ resellers?: Collection; apiKey: string; from: string; appUrl: string };
 
 /** Emails the owner when a build ends. A failed email never fails the build. */
-export const createNotifier = ({ users, apiKey, from, appUrl }: NotifyOptions): Notifier => async (build, outcome) => {
+export const createNotifier = ({ users, resellers, apiKey, from, appUrl }: NotifyOptions): Notifier => async (build, outcome) => {
   if (!build.ownerId || !build.appId) return;
   try {
     const user = await users.findOne({ _id: build.ownerId as never });
     if (!user?.email || !user.emailVerifiedAt) return;
     const link = `${appUrl}/my-apps/${build.appId}/builds/${build._id}`;
     const ok = outcome === 'success';
-    const message = (ok ? buildReady : buildFailed)({ appUrl, appName: build.config.appName, link });
+    const resellerId = (build as { resellerId?: unknown }).resellerId;
+    const reseller = resellers && resellerId ? await resellers.findOne({ _id: resellerId as never }) : null;
+    const brand: MailBrand | undefined = reseller ? { name: String(reseller.brandName), accent: String(reseller.accent), showBuiltWith: Boolean(reseller.terms?.builtWithLine) } : undefined;
+    const message = (ok ? buildReady : buildFailed)({ appUrl, appName: build.config.appName, link, brand });
     const response = await fetch(RESEND_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },

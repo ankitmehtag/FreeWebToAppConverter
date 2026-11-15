@@ -1717,3 +1717,48 @@ body {
   border-color: #c9d5ff;
   box-shadow: 0 10px 24px rgb(11 20 55 / 0.07);
 }
+
+/* Reseller pages: the accent is set on the wrapper as --teal and --teal-deep, so buttons and links follow it. */
+.reseller-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.reseller-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.reseller-quota {
+  margin: 0 0 24px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.reseller-quota p {
+  margin: 0 0 10px;
+}
+
+.reseller-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.reseller-meter span {
+  display: block;
+  height: 100%;
+  background: var(--teal);
+}
+
+.reseller-built {
+  margin-top: 28px;
+  text-align: center;
+}

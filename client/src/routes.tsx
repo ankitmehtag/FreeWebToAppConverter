@@ -11,6 +11,7 @@ import { Home } from './pages/home';
 import { About, Contact, Faq, Pricing } from './pages/info';
 import { InstallPage } from './pages/install';
 import { AcceptableUse, Privacy, Terms } from './pages/legal';
+import { ResellerDashboard } from './pages/reseller';
 import { Wizard } from './pages/wizard';
 import { RequireSignIn } from './session';
 
@@ -19,6 +20,8 @@ const signedIn = (page: ReactNode) => <RequireSignIn>{page}</RequireSignIn>;
 /** Every page, shared by the browser and the prerender, so both show the same thing. */
 export const AppRoutes = () => (
   <Routes>
+    {/* Outside the layout: a reseller's page wears their brand, not ours. */}
+    <Route path="r/:slug" element={signedIn(<ResellerDashboard />)} />
     <Route element={<Layout />}>
       <Route index element={<Home />} />
       <Route path="pricing" element={<Pricing />} />
