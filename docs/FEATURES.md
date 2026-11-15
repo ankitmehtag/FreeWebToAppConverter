@@ -41,7 +41,7 @@ Slices and proof are defined when each feature's spec is written.
 | Feature | Includes | Status |
 |---|---|---|
 | **F19 Domain verification** | Ownership check and assetlinks helper | not started |
-| **F20 Reseller** | Plans, API, signed callbacks | not started |
+| **F20 Reseller** | Plans, API, signed callbacks | done |
 | **F21 Showcase and add-ons** | Showcase, publishing help | not started |
 | **F22 Multi-currency** | Admin-set prices per currency | not started |
 | **F23 Redesign** | Navy and electric blue look, all screens | done |

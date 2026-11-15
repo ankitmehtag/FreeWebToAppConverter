@@ -26,4 +26,4 @@
   - Tests first: AC2
 - [x] T8: Reseller emails via the F18 module (R12)
   - Tests first: AC9
-- [ ] T9: Deploy (payments off), verification, owner sign-off
+- [x] T9: Deploy (payments off), verification, owner sign-off

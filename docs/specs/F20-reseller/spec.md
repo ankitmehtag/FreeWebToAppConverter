@@ -1,6 +1,6 @@
 # F20 Reseller
 
-Status: approved
+Status: done
 
 ## Goal
 An agency (a reseller) pays a monthly plan, gets a build quota, and uses a white-label dashboard to create and build Premium apps for its own clients under its own brand. Resellers can also drive builds through an API key and get a signed callback when a build finishes (the original F20 scope).

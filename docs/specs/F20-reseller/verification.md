@@ -39,4 +39,4 @@ Run 2026-11-16 on the developer Mac against real Mongo, Redis and the local S3 (
 | Caddy: `/resellers` and `/api/v1` were missing from the API routes, so the site's page answered them. Fixed in `deploy/Caddyfile` (d5dc310), Caddy restarted | `/resellers/nobody/brand` 404 JSON, `/resellers/me` 401, `/api/v1/apps` 401 `Invalid API key`, `/admin/api/plans` 404 for visitors, `/r/anything` and `/pricing` still the site, `/health` 200 |
 | New collections on production | `resellerCallbacks resellerKeys resellerOrders resellerPlans resellers`; 3 seed plans, 0 resellers; no errors in the API log |
 
-Sign-off: pending, owner
+Sign-off: owner, 2026-11-16. The three live checks above (a real plan payment, the pages and email in a browser and Gmail, a real callback receiver) were not run before sign-off; the real payment test stays deferred with the other payment tests.
