@@ -10,7 +10,7 @@ import { receiptView } from './receipts';
 import type { Mailer } from '../auth/types';
 import { applyEvent } from './events';
 import { discounted, findUsable, normalizeCode, redeem, releaseCoupon } from './coupons';
-import { isCurrency, premiumPrice, type Currency } from './prices';
+import { enabledPrices, isCurrency, premiumPrice, type Currency } from './prices';
 import { markPaid } from './unlock';
 import type { PaymentProvider, ProviderName } from './provider';
 import type { Resellers } from '../resellers';
@@ -27,24 +27,22 @@ export type Payments = Awaited<ReturnType<typeof prepareOrders>> & {
   appUrl?: string;
   /** Monthly plan payments of resellers (F20) travel through the same provider, webhook and sweep. */
   resellers?: Resellers;
-  /** Only providers with keys set. INR goes to Razorpay; USD waits for Stripe. */
+  /** Only providers with keys set. Razorpay takes every currency; non-INR needs international payments on the account. */
   providers: Partial<Record<ProviderName, PaymentProvider>>;
 };
 
-const PROVIDER_FOR: Record<Currency, ProviderName> = { INR: 'razorpay', USD: 'stripe' };
 const CHECKOUTS_PER_HOUR = 10;
 
 export const paymentsRouter = (auth: Auth, payments: Payments) => {
-  const { orders, apps, users, providers, coupons } = payments;
+  const { orders, apps, users, providers, coupons, prices } = payments;
   const router = Router();
   const csrf = requireCsrf(auth);
   router.use(allowOrigin(auth), cookieParser(), express.json({ limit: '1kb' }));
 
-  const available = () => (Object.keys(PROVIDER_FOR) as Currency[]).filter((currency) => providers[PROVIDER_FOR[currency]]);
-
-  /** Public: the Pricing page asks the server what Premium costs and where it can be bought. */
-  router.get('/prices', (_req, res) => {
-    res.json({ premium: { INR: premiumPrice('INR'), USD: premiumPrice('USD') }, available: available() });
+  /** Public: the Pricing page asks the server what Premium costs and where it can be bought. Nothing is for sale without a provider. */
+  router.get('/prices', async (_req, res) => {
+    const premium = providers.razorpay ? await enabledPrices(prices) : {};
+    res.json({ premium, available: Object.keys(premium) });
   });
 
   router.use(requireSession(auth));
@@ -67,7 +65,8 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     if (count > 30) return res.status(429).json({ error: 'Too many attempts, try again later' });
     const currency = req.body?.currency ?? 'INR';
     const coupon = isCurrency(currency) ? await findUsable(coupons, normalizeCode(req.body?.code), 'premium') : null;
-    const amount = coupon && isCurrency(currency) ? discounted(coupon, premiumPrice(currency), currency) : undefined;
+    const listPrice = coupon && isCurrency(currency) ? await premiumPrice(prices, currency) : undefined;
+    const amount = coupon && isCurrency(currency) && listPrice !== undefined ? discounted(coupon, listPrice, currency) : undefined;
     // One answer for a wrong, expired, used-up and inapplicable code, so codes cannot be probed.
     if (amount === undefined || !isCurrency(currency)) return res.status(404).json({ error: 'That code doesn’t work' });
     res.json({ code: coupon!.code, currency, amount });
@@ -111,6 +110,9 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     const appId = typeof req.body?.appId === 'string' && /^[0-9a-f]{24}$/.test(req.body.appId) ? new ObjectId(req.body.appId) : null;
     const currency = req.body?.currency ?? 'INR';
     if (!appId || !isCurrency(currency)) return res.status(400).json({ error: 'Choose an app and a currency' });
+    // Read now and stored on the order, so a later price change never touches an open or paid order (R4).
+    const listPrice = await premiumPrice(prices, currency);
+    if (listPrice === undefined) return res.status(400).json({ error: `Payment in ${currency} is not available yet` });
 
     // Another person's app and a missing one look the same, and neither leaves an order behind.
     const app = await apps.findOne({ _id: appId, ownerId: userId });
@@ -128,7 +130,6 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     // A coupon is read first to price the order, then taken atomically once the order holds the app.
     const code = normalizeCode(req.body?.couponCode);
     const coupon = code ? await findUsable(coupons, code, 'premium') : null;
-    const listPrice = premiumPrice(currency);
     const amount = coupon ? discounted(coupon, listPrice, currency) : listPrice;
     if (code && (!coupon || amount === undefined)) return res.status(400).json({ error: 'That code doesn’t work' });
     const price = amount as number;
@@ -136,7 +137,7 @@ export const paymentsRouter = (auth: Auth, payments: Payments) => {
     // Providers refuse tiny charges, so a coupon may take a price to nothing or leave a real one.
     if (!free && price < 100) return res.status(400).json({ error: 'That code doesn’t work' });
 
-    const providerName = PROVIDER_FOR[currency];
+    const providerName: ProviderName = 'razorpay';
     const provider = providers[providerName];
     if (!free && !provider) return res.status(400).json({ error: `Payment in ${currency} is not available yet` });
 

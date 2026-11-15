@@ -1,6 +1,6 @@
 # F22 Multi-currency
 
-Status: draft, waiting for the owner's approval
+Status: built, not deployed
 
 ## Goal
 Let the owner set the Premium price per currency from the admin panel, and let a buyer pay in a currency that suits them, without a code change or a deploy.
@@ -39,6 +39,6 @@ Let the owner set the Premium price per currency from the admin panel, and let a
 - AC9 (R8): Given Razorpay rejects a currency, when a buyer tries it, then they see a short message and no `created` order is left behind.
 
 ## Open questions
-- Q1: Which currencies do you want on at launch? Suggested: INR and USD only, and the admin can add the rest later.
+- Q1: Decided by the owner on 2026-11-16: INR and USD. The code supports six; the admin can switch the others on later.
 - Q2: Razorpay needs "International payments" enabled on your account before any non-INR order works, and its fees are higher on those (about 3 percent plus conversion). Is it enabled? If not, USD stays off until it is.
 - Q3: US$1 loses a lot to fees (see F14 Q1). Do you want to raise the USD price (for example US$2 or 3) when this ships?

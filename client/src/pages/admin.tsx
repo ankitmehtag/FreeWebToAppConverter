@@ -3,8 +3,9 @@ import { api, ApiError } from '../api';
 import { formatPrice } from '../pay-panel';
 import { Failure, short, Table, useAct, useList, when, type Row } from './admin-kit';
 import { Plans, Resellers } from './admin-resellers';
+import { Prices } from './admin-prices';
 
-const TABS = ['Overview', 'Users', 'Apps', 'Builds', 'Orders', 'Resellers', 'Plans', 'Audit'] as const;
+const TABS = ['Overview', 'Users', 'Apps', 'Builds', 'Orders', 'Resellers', 'Plans', 'Prices', 'Audit'] as const;
 type Tab = (typeof TABS)[number];
 
 /** The owner's panel. The server answers 404 to anyone else, so a visitor sees nothing here. */
@@ -41,6 +42,7 @@ export const Admin = () => {
       {tab === 'Orders' && <Orders />}
       {tab === 'Resellers' && <Resellers />}
       {tab === 'Plans' && <Plans />}
+      {tab === 'Prices' && <Prices />}
       {tab === 'Audit' && <Audit />}
     </main>
   );

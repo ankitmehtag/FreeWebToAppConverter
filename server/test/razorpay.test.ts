@@ -34,10 +34,10 @@ describe('AC1: Razorpay checkout is an order for the modal', () => {
     expect(JSON.stringify(result)).not.toContain('topsecret');
   });
 
-  it('refuses a currency Razorpay is not used for', async () => {
-    const { fetchImpl, calls } = fakeFetch([{}]);
-    await expect(make(fetchImpl).createCheckout({ ...input, currency: 'USD' })).rejects.toThrow(/INR/);
-    expect(calls).toHaveLength(0);
+  it('sends the order in the buyer’s currency (F22)', async () => {
+    const { calls, fetchImpl } = fakeFetch([{ id: 'order_2' }]);
+    await make(fetchImpl).createCheckout({ ...input, amount: 150, currency: 'USD' });
+    expect(JSON.parse(String(calls[0]!.init.body))).toMatchObject({ amount: 150, currency: 'USD' });
   });
 
   it('fails clearly, without leaking the reply, when Razorpay answers an error', async () => {

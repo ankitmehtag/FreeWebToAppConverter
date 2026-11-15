@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { CurrencyPicker, formatPrice, usePrices } from '../pay-panel';
 import { OPERATOR, usePageMeta } from '../site';
 
 const Article = ({ path, title, children }: { path: string; title: string; children: ReactNode }) => {
@@ -14,6 +15,9 @@ const Article = ({ path, title, children }: { path: string; title: string; child
 
 export const Pricing = () => {
   usePageMeta('/pricing');
+  const { prices, currency, choose } = usePrices();
+  // Until the server answers, the page shows the INR price, so the prerendered page is complete too.
+  const live = prices && currency ? { amount: prices.premium[currency] ?? 9900, code: currency } : { amount: 9900, code: 'INR' };
   return (
     <main className="article pricing-page">
       <h1>Pricing</h1>
@@ -34,7 +38,8 @@ export const Pricing = () => {
         </section>
         <section className="plan" aria-labelledby="premium">
           <h2 id="premium">Premium</h2>
-          <p className="plan-price">₹99 <span className="field-hint">or $1, per app, one time.</span></p>
+          <p className="plan-price">{formatPrice(live.amount, live.code)} <span className="field-hint">per app, one time.</span></p>
+          {prices && currency && <CurrencyPicker prices={prices} currency={currency} onChange={choose} />}
           <ul>
             <li>Everything in Free</li>
             <li>An Android App Bundle (AAB) ready for Google Play</li>

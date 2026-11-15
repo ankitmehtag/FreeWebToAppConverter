@@ -13,6 +13,7 @@ import { keyView, revokeKey } from '../resellers/keys';
 import { cancelPlan, reinstatePlan } from '../resellers/billing';
 import { adminResellerView, isDuplicate, planCreate, planView, planEdit, resellerCreate, resellerEdit, termsOf } from '../resellers';
 import { refundOrder } from '../payments/refunds';
+import { CURRENCIES } from '../payments/prices';
 import type { Payments } from '../payments/routes';
 import type { Apps } from '../apps';
 import type { Admin } from './index';
@@ -28,6 +29,7 @@ const id24 = z.string().regex(/^[0-9a-f]{24}$/);
 const reason = z.string().trim().min(3).max(200);
 const planBody = z.strictObject({ plan: z.enum(['free', 'premium']), reason });
 const reasonBody = z.strictObject({ reason });
+const priceEdit = z.strictObject({ currency: z.enum(CURRENCIES), amount: z.number().int().min(100).max(10_000_000), enabled: z.boolean(), reason });
 const codeBody = z.strictObject({ code: z.string().regex(/^\d{6}$/) });
 const couponBody = z.strictObject({
   code: z.string().trim().regex(/^[A-Za-z0-9_-]{3,32}$/),
@@ -311,6 +313,22 @@ export const adminRouter = ({ admin, builds, apps, payments }: Deps) => {
     }
     await record(res, 'coupon.create', { kind: 'coupon', id: code }, body.reason, { kind: body.kind, percent: body.percent, flatInr: body.flatInr, maxUses: body.maxUses, days: body.days });
     res.status(201).json({ code });
+  });
+
+  router.get('/prices', async (_req, res) => {
+    const rows = (await payments?.prices.find({}).toArray()) ?? [];
+    const byCode = new Map(rows.map((row) => [row.currency, row]));
+    // Every sellable currency is listed, so a new one can be switched on from here.
+    res.json({ prices: CURRENCIES.map((currency) => ({ currency, amount: byCode.get(currency)?.amount ?? null, enabled: Boolean(byCode.get(currency)?.enabled) })) });
+  });
+
+  // A price is a whole number of minor units. Open orders keep the amount they were created with (F22 R4).
+  router.post('/prices', csrf, async (req, res) => {
+    if (!payments) return void notFound(res);
+    const { currency, amount, enabled, reason: why } = priceEdit.parse(req.body);
+    await payments.prices.updateOne({ currency }, { $set: { amount, enabled, updatedAt: new Date() } }, { upsert: true });
+    await record(res, 'price.set', { kind: 'price', id: currency }, why, { amount, enabled });
+    res.status(204).end();
   });
 
   router.get('/plans', async (_req, res) => {

@@ -1,17 +1,30 @@
-import type { Plan } from '../apps/plan';
+import type { Collection, Document } from 'mongodb';
 
-export type Currency = 'INR' | 'USD';
+/** ISO codes the shop can sell in. Which of them are on, and for how much, lives in the database. */
+export const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD'] as const;
+export type Currency = (typeof CURRENCIES)[number];
 
-/** Minor units: paise and cents. The only place a price is written; the browser asks the server for it. */
-const PREMIUM: Record<Currency, number> = { INR: 9900, USD: 100 };
+export const isCurrency = (value: unknown): value is Currency => typeof value === 'string' && (CURRENCIES as readonly string[]).includes(value);
 
-export const isCurrency = (value: unknown): value is Currency => value === 'INR' || value === 'USD';
+/** Minor units: paise and cents. First-run values only; after that the admin's Prices page is the source. USD starts off until Razorpay international payments are on. */
+const SEED: { currency: Currency; amount: number; enabled: boolean }[] = [
+  { currency: 'INR', amount: 9900, enabled: true },
+  { currency: 'USD', amount: 100, enabled: false },
+];
 
-export const premiumPrice = (currency: Currency) => PREMIUM[currency];
+export const seedPrices = async (prices: Collection<Document>) => {
+  await prices.createIndex({ currency: 1 }, { unique: true });
+  for (const row of SEED) await prices.updateOne({ currency: row.currency }, { $setOnInsert: { ...row, updatedAt: new Date() } }, { upsert: true });
+};
 
-/** The price of a plan, or undefined for a plan or currency this server does not sell. */
-export const priceOf = (plan: Plan | string, currency: string): number | undefined => {
-  if (!isCurrency(currency)) return undefined;
-  if (plan === 'free') return 0;
-  return plan === 'premium' ? PREMIUM[currency] : undefined;
+/** The price of Premium in a currency, or undefined when that currency is off or unknown. */
+export const premiumPrice = async (prices: Collection<Document>, currency: Currency): Promise<number | undefined> => {
+  const row = await prices.findOne({ currency, enabled: true });
+  return typeof row?.amount === 'number' ? row.amount : undefined;
+};
+
+/** Every enabled currency with its Premium price. */
+export const enabledPrices = async (prices: Collection<Document>) => {
+  const rows = await prices.find({ enabled: true }, { sort: { currency: 1 } }).toArray();
+  return Object.fromEntries(rows.filter((row) => isCurrency(row.currency) && typeof row.amount === 'number').map((row) => [row.currency, row.amount as number])) as Partial<Record<Currency, number>>;
 };

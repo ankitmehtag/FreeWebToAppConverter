@@ -83,7 +83,6 @@ export const razorpay = ({ keyId, keySecret, webhookSecret, fetchImpl = fetch }:
     },
 
     async createCheckout(input) {
-      if (input.currency !== 'INR') throw new Error('Razorpay is used for INR only');
       const order = await call('/orders', {
         amount: input.amount,
         currency: input.currency,

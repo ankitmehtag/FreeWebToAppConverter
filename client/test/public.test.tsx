@@ -84,11 +84,12 @@ describe('F14 R16: the refund window is stated', () => {
 });
 
 describe('F11 AC2: honest plans and the Google Play warning', () => {
-  it('states the Free plan’s real limits and marks Premium as coming soon', async () => {
+  it('states the Free plan’s real limits and shows the Premium price', async () => {
     open('/pricing');
     await screen.findByRole('heading', { name: 'Pricing' });
     for (const text of [/3 builds a day/, /kept for 7 days/, /“Made with” watermark/]) expect(screen.getByText(text)).toBeInTheDocument();
-    expect(screen.getByText(/Coming soon/)).toBeInTheDocument();
+    expect(screen.getByText(/₹99/)).toBeInTheDocument();
+    expect(screen.queryByText(/Coming soon/)).not.toBeInTheDocument();
   });
 
   it('warns about Google Play on Home and in the FAQ', async () => {

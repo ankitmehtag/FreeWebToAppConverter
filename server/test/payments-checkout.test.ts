@@ -16,7 +16,7 @@ const withApp = async () => {
 describe('R2: prices come from the server', () => {
   it('answers the price list without a session and says where Premium can be bought', async () => {
     const body = await (await fetch(`${h.url}/payments/prices`)).json();
-    expect(body).toEqual({ premium: { INR: 9900, USD: 100 }, available: ['INR'] });
+    expect(body).toEqual({ premium: { INR: 9900 }, available: ['INR'] });
   });
 });
 
@@ -127,5 +127,37 @@ describe('R24: checkout is rate limited per user', () => {
     const other = await withApp();
     expect((await other.user.post('/payments/checkout', { appId: other.appId })).status).toBe(201);
     void appId;
+  });
+});
+
+describe('F22: prices from the database', () => {
+  it('AC4: a price change leaves an open order at its own amount', async () => {
+    const { user, appId } = await withApp();
+    const first = await (await user.post('/payments/checkout', { appId })).json();
+    await h.payments.prices.updateOne({ currency: 'INR' }, { $set: { amount: 19900 } });
+    try {
+      const again = await (await user.post('/payments/checkout', { appId })).json();
+      expect(first.amount).toBe(9900);
+      expect(again.amount).toBe(9900);
+      const other = String((await (await user.post('/apps', { appName: 'Second' })).json()).id);
+      expect((await (await user.post('/payments/checkout', { appId: other })).json()).amount).toBe(19900);
+    } finally {
+      await h.payments.prices.updateOne({ currency: 'INR' }, { $set: { amount: 9900 } });
+    }
+  });
+
+  it('AC5: a currency switched off is neither listed nor accepted, and one switched on is both', async () => {
+    const { user, appId } = await withApp();
+    await h.payments.prices.updateOne({ currency: 'USD' }, { $set: { amount: 150, enabled: true } });
+    try {
+      expect(await (await fetch(`${h.url}/payments/prices`)).json()).toEqual({ premium: { INR: 9900, USD: 150 }, available: ['INR', 'USD'] });
+      const order = await (await user.post('/payments/checkout', { appId, currency: 'USD' })).json();
+      expect(order).toMatchObject({ currency: 'USD', amount: 150 });
+      await h.orders.updateOne({ _id: new ObjectId(order.id) }, { $set: { status: 'failed' } });
+      await h.payments.prices.updateOne({ currency: 'USD' }, { $set: { enabled: false } });
+      expect((await user.post('/payments/checkout', { appId, currency: 'USD' })).status).toBe(400);
+    } finally {
+      await h.payments.prices.updateOne({ currency: 'USD' }, { $set: { amount: 100, enabled: false } });
+    }
   });
 });

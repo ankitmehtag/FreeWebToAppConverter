@@ -1,4 +1,5 @@
 import type { Db } from 'mongodb';
+import { seedPrices } from './prices';
 
 export type OrderStatus = 'created' | 'pending' | 'paid' | 'failed' | 'refunded' | 'disputed';
 
@@ -11,6 +12,7 @@ export const prepareOrders = async (db: Db) => {
   const providerEvents = db.collection('providerEvents');
   const coupons = db.collection('coupons');
   const counters = db.collection('counters');
+  const prices = db.collection('prices');
 
   // One live order per app: a second charge for the same app is impossible, not just unlikely (R5).
   await orders.createIndex({ appId: 1 }, { unique: true, partialFilterExpression: { status: { $in: [...OPEN_STATUSES] } } });
@@ -20,6 +22,7 @@ export const prepareOrders = async (db: Db) => {
   // A repeated or replayed event is a no-op (R9).
   await providerEvents.createIndex({ provider: 1, eventId: 1 }, { unique: true });
   await coupons.createIndex({ code: 1 }, { unique: true });
+  await seedPrices(prices);
 
-  return { orders, providerEvents, coupons, counters };
+  return { orders, providerEvents, coupons, counters, prices };
 };

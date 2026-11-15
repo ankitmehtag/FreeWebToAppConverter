@@ -22,24 +22,49 @@ export const loadCheckoutScript = () =>
     document.head.appendChild(script);
   });
 
-type Prices = { premium: { INR: number; USD: number }; available: ('INR' | 'USD')[] };
+export type Prices = { premium: Record<string, number>; available: string[] };
 
+/** Minor units to a price: ₹99, $1.50, £2. Whole amounts show no decimals. */
 export const formatPrice = (amount: number, currency: string) =>
-  currency === 'INR' ? `₹${amount / 100}` : `$${amount / 100}`;
+  new Intl.NumberFormat('en', { style: 'currency', currency, minimumFractionDigits: amount % 100 === 0 ? 0 : 2, useGrouping: false }).format(amount / 100);
+
+const CHOICE_KEY = 'currency';
+
+/** The server's price list and the buyer's pick, remembered in this browser when it still applies. */
+export const usePrices = () => {
+  const [prices, setPrices] = useState<Prices | null>(null);
+  const [picked, setPicked] = useState('');
+  useEffect(() => {
+    api<Prices>('/payments/prices').then(setPrices, () => setPrices(null));
+    try { setPicked(localStorage.getItem(CHOICE_KEY) ?? ''); } catch { /* private window: the default is fine */ }
+  }, []);
+  const currency = prices && (prices.available.includes(picked) ? picked : prices.available[0]);
+  const choose = (next: string) => {
+    setPicked(next);
+    try { localStorage.setItem(CHOICE_KEY, next); } catch { /* not remembered, still works */ }
+  };
+  return { prices, currency, choose };
+};
+
+/** Shown only when more than one currency is on. */
+export const CurrencyPicker = ({ prices, currency, onChange }: { prices: Prices; currency: string; onChange: (currency: string) => void }) =>
+  prices.available.length > 1 ? (
+    <label className="field">
+      <span>Currency</span>
+      <select value={currency} aria-label="Currency" onChange={(event) => onChange(event.target.value)}>
+        {prices.available.map((code) => <option key={code} value={code}>{code}</option>)}
+      </select>
+    </label>
+  ) : null;
 
 /** Buy Premium for one app. Shown only when the server has a payment provider switched on. */
 export const PayPanel = ({ appId }: { appId: string }) => {
-  const [prices, setPrices] = useState<Prices | null>(null);
+  const { prices, currency, choose } = usePrices();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [code, setCode] = useState('');
   const [applied, setApplied] = useState<{ code: string; amount: number } | null>(null);
 
-  useEffect(() => {
-    api<Prices>('/payments/prices').then(setPrices, () => setPrices(null));
-  }, []);
-
-  const currency = prices?.available[0];
   if (!prices || !currency) return null;
 
   const apply = async () => {
@@ -94,8 +119,9 @@ export const PayPanel = ({ appId }: { appId: string }) => {
     <div className="build-panel">
       <h3>Premium</h3>
       <p className="field-hint">
-        Your own signing key, an app bundle for Google Play, and no watermark. {formatPrice(prices.premium[currency], currency)} once, for this app.
+        Your own signing key, an app bundle for Google Play, and no watermark. {formatPrice(prices.premium[currency] ?? 0, currency)} once, for this app.
       </p>
+      <CurrencyPicker prices={prices} currency={currency} onChange={(next) => { choose(next); setApplied(null); }} />
       <label className="field">
         <span>Coupon code</span>
         <input type="text" value={code} maxLength={32} onChange={(event) => { setCode(event.target.value); setApplied(null); }} aria-label="Coupon code" />
@@ -103,7 +129,7 @@ export const PayPanel = ({ appId }: { appId: string }) => {
       <button type="button" className="button button-quiet" disabled={busy || !code.trim()} onClick={apply}>Apply code</button>
       {applied && <p className="hint" role="status">Code applied: {applied.amount === 0 ? 'free' : formatPrice(applied.amount, currency)}.</p>}
       <button type="button" className="button" disabled={busy} onClick={buy}>
-        {busy ? 'Opening payment…' : applied ? (applied.amount === 0 ? 'Unlock Premium free' : `Buy Premium for ${formatPrice(applied.amount, currency)}`) : `Buy Premium for ${formatPrice(prices.premium[currency], currency)}`}
+        {busy ? 'Opening payment…' : applied ? (applied.amount === 0 ? 'Unlock Premium free' : `Buy Premium for ${formatPrice(applied.amount, currency)}`) : `Buy Premium for ${formatPrice(prices.premium[currency] ?? 0, currency)}`}
       </button>
       {error && <p className="form-error" role="alert">{error}</p>}
     </div>

@@ -281,3 +281,27 @@ describe('F18 emails from the admin and payment paths', () => {
     }
   });
 });
+
+describe('F22 AC2, AC3: prices', () => {
+  it('hides the route from a non-admin', async () => {
+    const user = await signedIn(h, email());
+    expect((await user.get('/admin/api/prices')).status).toBe(404);
+    expect((await user.post('/admin/api/prices', { currency: 'USD', amount: 150, enabled: true, ...why })).status).toBe(404);
+  });
+  it('changes a price, lists it, and writes one audit entry', async () => {
+    const { user } = await adminIn(h);
+    const before = (await audit()).length;
+    expect((await user.post('/admin/api/prices', { currency: 'USD', amount: 150, enabled: true, reason: 'raise it' })).status).toBe(204);
+    const { prices } = await (await user.get('/admin/api/prices')).json();
+    expect(prices.find((row: { currency: string }) => row.currency === 'USD')).toEqual({ currency: 'USD', amount: 150, enabled: true });
+    expect(prices.map((row: { currency: string }) => row.currency)).toContain('GBP');
+    const entries = await audit();
+    expect(entries.length).toBe(before + 1);
+    expect(entries[0]).toMatchObject({ action: 'price.set', target: { kind: 'price', id: 'USD' }, reason: 'raise it', detail: { amount: 150, enabled: true } });
+  });
+  it('refuses a fractional, tiny or unknown price and a missing reason', async () => {
+    const { user } = await adminIn(h);
+    for (const body of [{ currency: 'USD', amount: 1.5, enabled: true, ...why }, { currency: 'USD', amount: 50, enabled: true, ...why }, { currency: 'XYZ', amount: 500, enabled: true, ...why }, { currency: 'USD', amount: 500, enabled: true }])
+      expect((await user.post('/admin/api/prices', body)).status).toBe(400);
+  });
+});

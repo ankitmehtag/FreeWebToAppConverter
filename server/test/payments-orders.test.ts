@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { MongoClient, ObjectId } from 'mongodb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { priceOf, premiumPrice, isCurrency } from '../src/payments/prices';
+import { enabledPrices, premiumPrice, isCurrency } from '../src/payments/prices';
 import { prepareOrders } from '../src/payments/orders';
 
 let mongo: MongoClient;
@@ -19,23 +19,22 @@ const order = (appId: ObjectId, status: string, extra: object = {}) => ({
   appId, userId: new ObjectId(), plan: 'premium', provider: 'razorpay', currency: 'INR', amount: 9900, status, createdAt: new Date(), ...extra,
 });
 
-describe('R2: prices live in one module, in minor units', () => {
-  it('prices Premium at 9900 paise or 100 cents and Free at 0', () => {
-    expect(premiumPrice('INR')).toBe(9900);
-    expect(premiumPrice('USD')).toBe(100);
-    expect(priceOf('free', 'INR')).toBe(0);
-    expect(priceOf('premium', 'USD')).toBe(100);
+describe('F22 R1: prices live in the database, in minor units', () => {
+  it('seeds INR on and USD off, and never overwrites an admin change', async () => {
+    const { prices } = await prepareOrders(db);
+    expect(await premiumPrice(prices, 'INR')).toBe(9900);
+    expect(await premiumPrice(prices, 'USD')).toBeUndefined();
+    await prices.updateOne({ currency: 'USD' }, { $set: { amount: 150, enabled: true } });
+    await prepareOrders(db);
+    expect(await premiumPrice(prices, 'USD')).toBe(150);
+    expect(await enabledPrices(prices)).toEqual({ INR: 9900, USD: 150 });
   });
 
-  it('refuses a currency or plan it does not know', () => {
-    expect(isCurrency('INR')).toBe(true);
-    expect(isCurrency('EUR')).toBe(false);
-    expect(priceOf('gold', 'INR')).toBeUndefined();
-    expect(priceOf('premium', 'EUR')).toBeUndefined();
-  });
-
-  it('keeps every price a whole number', () => {
-    for (const currency of ['INR', 'USD'] as const) expect(Number.isInteger(premiumPrice(currency))).toBe(true);
+  it('refuses a currency it does not know', async () => {
+    const { prices } = await prepareOrders(db);
+    expect(isCurrency('EUR')).toBe(true);
+    expect(isCurrency('XYZ')).toBe(false);
+    expect(await premiumPrice(prices, 'EUR')).toBeUndefined();
   });
 });
 
